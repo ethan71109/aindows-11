@@ -258,15 +258,45 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
     }
   }
 
-  function cacheSet(key, html) {
-    try {
-      localStorage.setItem(
-        CACHE_PREFIX + key,
-        JSON.stringify({ html, model: getSettings().model, ts: Date.now() })
-      );
-    } catch {
-      /* localStorage full — content just regenerates next time */
+  // localStorage is ~5MB; keep dreams within a budget so caching (and its
+  // cost savings) stays predictable. Oldest fragments are evicted first;
+  // whole apps only as a last resort.
+  const CACHE_BUDGET = 3_000_000;
+
+  function cacheEntries() {
+    return Object.keys(localStorage)
+      .filter((k) => k.startsWith(CACHE_PREFIX))
+      .map((k) => {
+        let ts = 0;
+        try { ts = JSON.parse(localStorage.getItem(k)).ts || 0; } catch {}
+        return { k, ts, len: (localStorage.getItem(k) || "").length, isFrag: k.includes(".frag.") };
+      });
+  }
+
+  function evictForBudget(extraBytes) {
+    const budget = CACHE_BUDGET - (extraBytes || 0);
+    const entries = cacheEntries();
+    let total = entries.reduce((s, e) => s + e.len, 0);
+    if (total <= budget) return;
+    const victims = entries.filter((e) => e.isFrag).sort((a, b) => a.ts - b.ts)
+      .concat(entries.filter((e) => !e.isFrag).sort((a, b) => a.ts - b.ts));
+    for (const v of victims) {
+      if (total <= budget) break;
+      localStorage.removeItem(v.k);
+      total -= v.len;
     }
+  }
+
+  function cacheSet(key, html) {
+    const payload = JSON.stringify({ html, model: getSettings().model, ts: Date.now() });
+    try {
+      localStorage.setItem(CACHE_PREFIX + key, payload);
+    } catch {
+      // quota hit (something else is hogging localStorage) — evict and retry once
+      evictForBudget(payload.length);
+      try { localStorage.setItem(CACHE_PREFIX + key, payload); } catch { return; }
+    }
+    evictForBudget(0);
   }
 
   const getCached = (name) => cacheGet(slug(name));

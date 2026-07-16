@@ -1,0 +1,33 @@
+# Push a tag like v1.0.1 and this builds the Windows installer in the cloud
+# and publishes the GitHub Release (Setup.exe + blockmap + latest.yml).
+# Installed copies of AIndows auto-update from that release.
+#
+# The only rule: the tag must match "version" in package.json.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build and publish release
+        run: npm run release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
