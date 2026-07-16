@@ -1,7 +1,7 @@
 {
   "name": "aindows-11",
   "productName": "AIndows 11",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "A Windows 11 that mostly doesn't exist — apps are dreamed into being by Claude the moment you open them.",
   "author": "ethan71109",
   "license": "MIT",
@@ -43,7 +43,8 @@
       {
         "provider": "github",
         "owner": "ethan71109",
-        "repo": "aindows-11"
+        "repo": "aindows-11",
+        "releaseType": "release"
       }
     ]
   }
