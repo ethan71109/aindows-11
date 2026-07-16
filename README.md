@@ -19,6 +19,37 @@ No install. Either:
 - double-click `index.html`, or
 - serve it (nicer): `python -m http.server 8000` → http://localhost:8000
 
+## Or run it as a real Windows app (.exe)
+
+The repo doubles as an Electron app that wraps the OS in a native window
+and **auto-updates itself** from this repo's GitHub Releases.
+
+```bash
+npm install        # once
+npm start          # run it as a desktop app (dev)
+npm run dist       # build the installer → dist/AIndows 11 Setup <version>.exe
+```
+
+Notes:
+- The installer is unsigned, so Windows SmartScreen will warn on first run —
+  click "More info → Run anyway". Normal for hobby apps.
+- The desktop app has its own storage (separate from your browser), so enter
+  your API key in Settings again on first launch.
+
+### Releasing an update (auto-update flow)
+
+Installed copies check this repo's **latest GitHub Release** on every launch
+and update themselves. To ship a new version:
+
+1. Bump `"version"` in `package.json` (e.g. `1.0.1`)
+2. `npm run dist`
+3. Create a GitHub release tagged `v1.0.1` and attach everything electron-builder
+   put in `dist/` for that build: the `Setup .exe`, the `.blockmap`, **and
+   `latest.yml`** (that's the file updaters read — don't forget it)
+
+Or do it in one step with a GitHub token: `set GH_TOKEN=...` then `npm run release`
+(builds and uploads the release automatically).
+
 ## Wake the imagination engine
 
 1. Get a Claude API key at https://platform.claude.com

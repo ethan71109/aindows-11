@@ -1,0 +1,50 @@
+{
+  "name": "aindows-11",
+  "productName": "AIndows 11",
+  "version": "1.0.0",
+  "description": "A Windows 11 that mostly doesn't exist — apps are dreamed into being by Claude the moment you open them.",
+  "author": "ethan71109",
+  "license": "MIT",
+  "main": "electron/main.js",
+  "repository": "github:ethan71109/aindows-11",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "release": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "io.github.ethan71109.aindows",
+    "productName": "AIndows 11",
+    "files": [
+      "index.html",
+      "css/**/*",
+      "js/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ethan71109",
+        "repo": "aindows-11"
+      }
+    ]
+  }
+}
