@@ -12,7 +12,7 @@ const APP_REGISTRY = [
 
   // ---- imagined by the AI on open ----
   { id: "explorer",   name: "File Explorer", icon: "📁", desktop: true,  w: 760, h: 520,
-    desc: "A Windows 11 File Explorer: left sidebar (Home, Desktop, Documents, Downloads, Pictures, Music, This PC), breadcrumb path bar, a main pane of plausible folders and files with names/dates/sizes. Folders MUST actually open: on double-click, dream() the folder's contents and swap them into the file pane (update the breadcrumb too, with working back navigation)" },
+    desc: "A Windows 11 File Explorer: left sidebar (Home, Desktop, Documents, Downloads, Pictures, Music, This PC), breadcrumb path bar, a main pane of plausible folders and files with names/dates/sizes. Folders MUST actually open: on double-click, dream() the folder's contents and swap them into the file pane (update the breadcrumb too, with working back navigation). CRITICAL: on startup call os.listFiles() and merge the user's REAL files into the listing with a ✨ badge — real ones open via os.readFile (show text; render data-URL images as <img>) and delete via os.deleteFile" },
   { id: "browser",    name: "Browser",        icon: "🌐", desktop: false, w: 820, h: 560,
     desc: "A web browser onto an imagined internet — address bar, tabs, and a fake news-portal homepage. Every link MUST work: intercept clicks and dream() the next page (pass the invented URL and what the page should be), then render it and update the address bar, with working back/forward history" },
   { id: "calculator", name: "Calculator",     icon: "🧮", desktop: true,  w: 340, h: 500,
@@ -28,9 +28,9 @@ const APP_REGISTRY = [
   { id: "photos",     name: "Photos",         icon: "🖼️", desktop: false, w: 720, h: 520,
     desc: "A photo gallery of 'photos' rendered as varied inline SVG / CSS-gradient scenes (sunsets, mountains, city nights) in a grid, with a lightbox view on click and invented dates/filenames" },
   { id: "mail",       name: "Mail",           icon: "✉️", desktop: false, w: 760, h: 520,
-    desc: "An email client with folders, an inbox of emails that were never sent (newsletters, a landlord, an old friend, suspicious spam), and a reading pane. Opening an email dreams() its full body; replying and sending dreams() the sender's reply back after a moment" },
+    desc: "An email client with folders, an inbox of emails that were never sent (newsletters, a landlord, an old friend, suspicious spam), and a reading pane. Opening an email dreams() its full body; replying and sending dreams() the sender's reply back after a moment. The compose window's attach button lists the user's REAL files via os.listFiles()" },
   { id: "terminal",   name: "Terminal",       icon: "⌨️", desktop: false, w: 680, h: 440,
-    desc: "A dark-themed terminal that actually responds to typed commands: help, dir, cd, echo, whoami, ipconfig, cls, and a few joke commands — inventing plausible output for each. For an unknown command, dream() what its output would plausibly be and print it" },
+    desc: "A dark-themed terminal that actually responds to typed commands: help, dir, cd, echo, whoami, ipconfig, cls, and a few joke commands — inventing plausible output for each. For an unknown command, dream() what its output would plausibly be and print it. The dir command also merges the user's REAL files from os.listFiles()" },
   { id: "store",      name: "Store",          icon: "🛍️", desktop: false, w: 760, h: 540,
     desc: "An app store full of apps that don't exist, with ratings, fake reviews, editor's picks, and Install buttons that animate a download then say Installed. Clicking an app dreams() its full store page with screenshots described in CSS/SVG" },
 ];

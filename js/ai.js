@@ -42,7 +42,10 @@ The sandbox also provides a global "os" object:
   os.deleteFile(name) -> Promise<{ok}>
 These are the user's REAL files. They persist across apps and reboots. Rules:
 - Any app with a Save / Export / Download action must actually save via os.saveFile (editors save text; Paint saves the canvas as a data-URL .png; etc.). Confirm the save in the UI.
-- Any app that displays files (file managers, open dialogs, attachment pickers, galleries) must call os.listFiles() on startup and merge the real files into the listing alongside the canon fake ones — visually distinguishable is nice (the real ones are the user's own work). Real files open via os.readFile (render text as text; render data-URL images as <img src=...>), and delete via os.deleteFile with confirmation.
+- NON-NEGOTIABLE for any app that displays files (file managers, open dialogs, attachment pickers, galleries): on startup, call os.listFiles() and merge the real files into the listing alongside the canon fake ones, marked so the user can tell they're real (e.g. a small ✨ badge). Follow this pattern:
+    (async () => { try { const real = await os.listFiles();
+      for (const f of real) addRowToListing(f, {real: true}); } catch {} })();
+  Real files open via os.readFile (render text as text; render data-URL images as <img src=...>) and delete via os.deleteFile with confirmation.
 - Never invent the contents of a real file; read it.`;
 
   const SYSTEM_FRAGMENT = `You are the deep-dream engine inside AIndows 11. A running dreamed application is requesting MORE imagined content to insert into itself.
