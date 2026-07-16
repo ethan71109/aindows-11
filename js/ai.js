@@ -159,6 +159,7 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
 
   // USD per million tokens: [input, output] (list prices; treat as estimates)
   const PRICES = {
+    "claude-fable-5": [10, 50],
     "claude-opus-4-8": [5, 25],
     "claude-sonnet-5": [3, 15],
     "claude-haiku-4-5": [1, 5],
@@ -318,21 +319,34 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
 
   /* ---------- shared streaming request ---------- */
 
-  /** POST a streaming messages request; onProgress(charCount, textSoFar). */
+  // Claude Fable 5 extras: its safety classifiers can decline a request, so we
+  // opt into the server-side fallback — a declined dream is re-dreamed by Opus
+  // inside the same call. (Fable also always "thinks" before writing.)
+  function requestExtras(body, h) {
+    if (getSettings().model === "claude-fable-5") {
+      body.fallbacks = [{ model: "claude-opus-4-8" }];
+      h["anthropic-beta"] = "server-side-fallback-2026-06-01";
+    }
+    return { body, h };
+  }
+
+  /** POST a streaming messages request; onProgress(charCount, textSoFar, phase). */
   async function streamText({ system, user, maxTokens, onProgress }) {
     const settings = getSettings();
     if (!settings.apiKey) throw new Error("NO_KEY");
 
+    const { body, h } = requestExtras({
+      model: settings.model,
+      max_tokens: maxTokens,
+      stream: true,
+      system,
+      messages: [{ role: "user", content: user }],
+    }, headers());
+
     const res = await fetch(API_URL, {
       method: "POST",
-      headers: headers(),
-      body: JSON.stringify({
-        model: settings.model,
-        max_tokens: maxTokens,
-        stream: true,
-        system,
-        messages: [{ role: "user", content: user }],
-      }),
+      headers: h,
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -365,9 +379,12 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
         }
         if (event.type === "message_start") {
           usage = Object.assign({}, event.message?.usage);
+        } else if (event.type === "content_block_start" && event.content_block?.type === "thinking") {
+          // Fable 5 thinks before it writes — let the UI show that.
+          if (onProgress) onProgress(text.length, text, "thinking");
         } else if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
           text += event.delta.text;
-          if (onProgress) onProgress(text.length, text);
+          if (onProgress) onProgress(text.length, text, "writing");
         } else if (event.type === "message_delta") {
           if (event.delta?.stop_reason) stopReason = event.delta.stop_reason;
           if (event.usage?.output_tokens) (usage = usage || {}).output_tokens = event.usage.output_tokens;
@@ -377,6 +394,9 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
       }
     }
     recordUsage(usage);
+    if (stopReason === "refusal") {
+      throw new Error("The engine declined this dream (safety filters) — even after falling back. Try rephrasing it, or switch models in Settings.");
+    }
     return { text, stopReason };
   }
 
@@ -437,23 +457,24 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
     let messages = [...history];
 
     for (let i = 0; i < 6; i++) {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: headers(),
-        body: JSON.stringify({
-          model: getSettings().model,
-          max_tokens: 2048,
-          system: SYSTEM_COPILOT + universeBlock(),
-          tools: COPILOT_TOOLS,
-          messages,
-        }),
-      });
+      const { body, h } = requestExtras({
+        model: getSettings().model,
+        max_tokens: 2048,
+        system: SYSTEM_COPILOT + universeBlock(),
+        tools: COPILOT_TOOLS,
+        messages,
+      }, headers());
+
+      const res = await fetch(API_URL, { method: "POST", headers: h, body: JSON.stringify(body) });
       if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.error?.message || `HTTP ${res.status}`);
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error?.message || `HTTP ${res.status}`);
       }
       const msg = await res.json();
       recordUsage(msg.usage);
+      if (msg.stop_reason === "refusal") {
+        return { text: "I can't help with that one — the engine's safety filters declined it.", messages };
+      }
       messages.push({ role: "assistant", content: msg.content });
 
       if (msg.stop_reason !== "tool_use") {

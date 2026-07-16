@@ -105,6 +105,7 @@ const BUILTINS = {
         <label for="set-model">Model</label>
         <select id="set-model">
           <option value="claude-opus-4-8">Claude Opus 4.8 — best apps (default)</option>
+          <option value="claude-fable-5">Claude Fable 5 — deepest dreams (2× Opus price, thinks first)</option>
           <option value="claude-sonnet-5">Claude Sonnet 5 — fast &amp; great</option>
           <option value="claude-haiku-4-5">Claude Haiku 4.5 — fastest &amp; cheapest</option>
         </select>

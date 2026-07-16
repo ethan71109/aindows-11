@@ -264,8 +264,10 @@
     const codeEl = body.querySelector(".ai-code");
 
     try {
-      const html = await AI.generateApp(app.name, app.desc || "", (chars, text) => {
-        statusEl.textContent = `${(chars / 1000).toFixed(1)}k characters materialized`;
+      const html = await AI.generateApp(app.name, app.desc || "", (chars, text, phase) => {
+        statusEl.textContent = phase === "thinking" && !chars
+          ? "the engine is thinking about what this app should be…"
+          : `${(chars / 1000).toFixed(1)}k characters materialized`;
         codeEl.textContent = text.slice(-4000);
         codeEl.scrollTop = codeEl.scrollHeight;
       });

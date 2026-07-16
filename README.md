@@ -93,9 +93,13 @@ your key or your data.
 
 Each *fresh* generation is one API call (roughly 3–10k output tokens — a few
 cents on the default Opus 4.8, well under a cent on Haiku, selectable in
-Settings). Generated apps are cached in localStorage, so re-opening is instant
-and free. The 🔄 button in a window's title bar re-dreams that one app;
-Settings can forget all of them.
+Settings). Claude Fable 5 is also available for the deepest dreams — it's
+Anthropic's most capable model, about 2× Opus pricing, and it visibly *thinks*
+before the code starts streaming. (If its safety filters ever decline a dream,
+AIndows automatically falls back to Opus inside the same request.) Generated
+apps are cached in localStorage, so re-opening is instant and free. The 🔄
+button in a window's title bar re-dreams that one app; Settings can forget all
+of them.
 
 ## Files
 
