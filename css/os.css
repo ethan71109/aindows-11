@@ -1,0 +1,524 @@
+/* ============ AIndows 11 — shell styles ============ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --acrylic: rgba(243, 243, 243, 0.85);
+  --acrylic-dark: rgba(32, 32, 32, 0.72);
+  --accent: #0067c0;
+  --win-radius: 8px;
+  --taskbar-h: 48px;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+  user-select: none;
+}
+
+/* ---------- Boot screen ---------- */
+
+#boot {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #000;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 22px;
+  transition: opacity .6s ease;
+}
+#boot.fade { opacity: 0; pointer-events: none; }
+
+.boot-logo {
+  display: grid;
+  grid-template-columns: 34px 34px;
+  gap: 5px;
+}
+.boot-logo span {
+  width: 34px; height: 34px;
+  background: #4cc2ff;
+  border-radius: 2px;
+}
+.boot-name { color: #fff; font-size: 26px; font-weight: 300; letter-spacing: 1px; }
+.boot-hint { color: #888; font-size: 13px; }
+
+.boot-spinner { display: flex; gap: 5px; height: 20px; align-items: center; }
+.boot-spinner span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #fff;
+  animation: bootdot 1.6s infinite ease-in-out;
+}
+.boot-spinner span:nth-child(2) { animation-delay: .12s; }
+.boot-spinner span:nth-child(3) { animation-delay: .24s; }
+.boot-spinner span:nth-child(4) { animation-delay: .36s; }
+.boot-spinner span:nth-child(5) { animation-delay: .48s; }
+@keyframes bootdot {
+  0%, 80%, 100% { transform: scale(.5); opacity: .3; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* ---------- Desktop / wallpaper ---------- */
+
+#desktop {
+  position: fixed; inset: 0 0 var(--taskbar-h) 0;
+  background:
+    radial-gradient(ellipse 60% 55% at 62% 38%, rgba(76,194,255,.55), transparent 60%),
+    radial-gradient(ellipse 50% 60% at 40% 60%, rgba(120,86,255,.5), transparent 62%),
+    radial-gradient(ellipse 45% 40% at 55% 62%, rgba(0,120,215,.55), transparent 65%),
+    linear-gradient(135deg, #0a1a3a 0%, #10275f 45%, #0b1e4b 100%);
+}
+
+/* ---------- Desktop icons ---------- */
+
+#icons {
+  position: absolute; top: 12px; left: 12px; bottom: 8px;
+  display: flex; flex-direction: column; flex-wrap: wrap;
+  gap: 4px; align-content: flex-start;
+}
+.dicon {
+  width: 84px; padding: 8px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  border-radius: 4px; border: 1px solid transparent;
+  cursor: default; text-align: center;
+}
+.dicon:hover { background: rgba(255,255,255,.12); }
+.dicon.selected { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.35); }
+.dicon .ico { font-size: 34px; line-height: 1; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.dicon .label {
+  color: #fff; font-size: 12px; line-height: 1.25;
+  text-shadow: 0 1px 3px rgba(0,0,0,.9);
+  word-break: break-word;
+}
+.dicon .ai-badge { font-size: 9px; color: #9ee0ff; text-shadow: 0 1px 2px #000; }
+
+/* ---------- Windows ---------- */
+
+.window {
+  position: absolute;
+  min-width: 320px; min-height: 220px;
+  background: #fbfbfb;
+  border: 1px solid rgba(0,0,0,.25);
+  border-radius: var(--win-radius);
+  box-shadow: 0 16px 42px rgba(0,0,0,.45);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  resize: both;
+  opacity: 0;
+  transform: scale(.96);
+  transition: opacity .14s ease, transform .14s ease;
+}
+.window.shown { opacity: 1; transform: scale(1); }
+.window.closing { opacity: 0; transform: scale(.94); }
+.window.minimized { display: none; }
+.window.maximized {
+  top: 0 !important; left: 0 !important;
+  width: 100% !important; height: 100% !important;
+  border-radius: 0; resize: none;
+}
+.window.dragging iframe { pointer-events: none; }
+.window:not(.focused) { box-shadow: 0 8px 22px rgba(0,0,0,.3); }
+.window:not(.focused) .titlebar { color: #8a8a8a; }
+
+.titlebar {
+  height: 36px; flex: 0 0 36px;
+  display: flex; align-items: center;
+  background: #f3f3f3;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+  font-size: 12.5px; color: #1a1a1a;
+  cursor: default;
+}
+.titlebar .t-ico { margin: 0 8px 0 12px; font-size: 14px; }
+.titlebar .t-title { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+.t-btns { display: flex; height: 100%; }
+.t-btns button {
+  width: 46px; height: 100%;
+  border: none; background: transparent;
+  font-size: 12px; color: #1a1a1a;
+  cursor: default;
+  font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
+}
+.t-btns button:hover { background: rgba(0,0,0,.06); }
+.t-btns button.t-close:hover { background: #c42b1c; color: #fff; }
+.t-btns button.t-regen { font-size: 13px; }
+
+.win-body {
+  flex: 1; position: relative; overflow: auto;
+  background: #fff;
+}
+.win-body iframe {
+  width: 100%; height: 100%; border: none; display: block;
+  background: #fff;
+}
+
+/* ---------- AI loading state: watch the dream being written ---------- */
+
+.ai-loading {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; gap: 10px;
+  background: #0d1117;
+  padding: 14px;
+}
+.ai-load-head { display: flex; align-items: center; gap: 12px; text-align: left; }
+.ai-loading .orb {
+  flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%;
+  background: conic-gradient(from 0deg, #4cc2ff, #7856ff, #0067c0, #4cc2ff);
+  animation: orbspin 1.2s linear infinite;
+  filter: blur(1px);
+}
+@keyframes orbspin { to { transform: rotate(360deg); } }
+.ai-loading .ai-title { font-size: 14px; font-weight: 600; color: #e6edf3; }
+.ai-loading .ai-status { font-size: 11.5px; color: #7d8590; min-height: 15px; }
+.ai-loading .ai-note { font-size: 10.5px; color: #566070; text-align: center; }
+
+.ai-code {
+  flex: 1; overflow: auto;
+  background: #010409;
+  border: 1px solid #21262d; border-radius: 6px;
+  padding: 10px 12px;
+  font: 10.5px/1.5 Consolas, "Cascadia Mono", monospace;
+  color: #7ee0a3;
+  white-space: pre-wrap; word-break: break-all;
+  text-shadow: 0 0 6px rgba(126,224,163,.25);
+}
+
+.ai-error {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  background: #fdfdfd; text-align: center; padding: 28px;
+}
+.ai-error .e-ico { font-size: 34px; }
+.ai-error .e-title { font-size: 15px; font-weight: 600; color: #222; }
+.ai-error .e-msg { font-size: 12.5px; color: #666; max-width: 380px; line-height: 1.5; user-select: text; }
+.ai-error button {
+  margin-top: 6px; padding: 7px 18px;
+  border: 1px solid rgba(0,0,0,.15); border-radius: 4px;
+  background: var(--accent); color: #fff; font-size: 13px;
+  cursor: pointer;
+}
+.ai-error button.secondary { background: #fff; color: #222; }
+
+/* ---------- Taskbar ---------- */
+
+#taskbar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  height: var(--taskbar-h);
+  background: var(--acrylic);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-top: 1px solid rgba(0,0,0,.08);
+  display: flex; align-items: center;
+  z-index: 5000;
+}
+#taskbar-center {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px; height: 100%;
+}
+
+#start-btn {
+  width: 44px; height: 40px;
+  border: none; background: transparent; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: default;
+}
+#start-btn:hover { background: rgba(0,0,0,.06); }
+.win-logo { display: grid; grid-template-columns: 9px 9px; gap: 1.5px; }
+.win-logo i { width: 9px; height: 9px; background: #0078d4; border-radius: 1px; }
+
+#taskbar-apps { display: flex; align-items: center; gap: 4px; height: 100%; }
+.tb-app {
+  width: 44px; height: 40px;
+  border: none; background: transparent; border-radius: 4px;
+  font-size: 20px; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  cursor: default;
+}
+.tb-app:hover { background: rgba(0,0,0,.06); }
+.tb-app::after {
+  content: ""; position: absolute; bottom: 2px; left: 50%;
+  transform: translateX(-50%);
+  width: 6px; height: 3px; border-radius: 2px;
+  background: #8a8a8a;
+}
+.tb-app.active::after { width: 16px; background: var(--accent); }
+
+#tray {
+  position: absolute; right: 6px;
+  display: flex; align-items: center; gap: 10px;
+  height: 100%; padding: 0 8px;
+}
+#ai-status { font-size: 10px; color: #b44; }
+#ai-status.on { color: #2ea043; }
+#clock { text-align: right; font-size: 11.5px; color: #1a1a1a; line-height: 1.35; }
+
+/* ---------- Start menu ---------- */
+
+#startmenu {
+  position: fixed;
+  left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--taskbar-h) + 10px);
+  width: 560px; max-width: 94vw;
+  max-height: 72vh;
+  background: var(--acrylic);
+  backdrop-filter: blur(32px) saturate(1.4);
+  -webkit-backdrop-filter: blur(32px) saturate(1.4);
+  border: 1px solid rgba(0,0,0,.1);
+  border-radius: 8px;
+  box-shadow: 0 16px 42px rgba(0,0,0,.4);
+  padding: 20px 24px 12px;
+  display: flex; flex-direction: column;
+  z-index: 6000;
+}
+#startmenu.hidden { display: none; }
+
+#start-search {
+  height: 36px; padding: 0 14px;
+  border: 1px solid rgba(0,0,0,.15);
+  border-bottom: 2px solid var(--accent);
+  border-radius: 18px;
+  background: #fff; font-size: 13px;
+  outline: none;
+}
+.start-label { font-size: 13px; font-weight: 600; margin: 16px 4px 8px; color: #1a1a1a; }
+
+#start-apps {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  gap: 2px; overflow-y: auto;
+}
+.s-app {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 10px 2px; border-radius: 4px;
+  text-align: center; cursor: default;
+}
+.s-app:hover { background: rgba(0,0,0,.05); }
+.s-app .ico { font-size: 26px; line-height: 1; }
+.s-app .label { font-size: 11px; color: #1a1a1a; line-height: 1.2; }
+
+#start-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  border-top: 1px solid rgba(0,0,0,.08);
+  margin-top: 14px; padding: 10px 4px 2px;
+}
+.start-user { font-size: 12.5px; color: #1a1a1a; }
+#power-btn {
+  width: 36px; height: 36px; border: none; border-radius: 4px;
+  background: transparent; font-size: 15px; cursor: default;
+}
+#power-btn:hover { background: rgba(0,0,0,.07); }
+
+/* ---------- Built-in app internals (settings / notepad / welcome) ---------- */
+
+.app-pane { padding: 18px 22px; font-size: 13px; color: #1b1b1b; user-select: text; height: 100%; overflow-y: auto; }
+.app-pane h2 { font-size: 17px; font-weight: 600; margin-bottom: 12px; }
+.app-pane h3 { font-size: 13.5px; font-weight: 600; margin: 16px 0 6px; }
+.app-pane p { line-height: 1.55; margin-bottom: 8px; color: #444; }
+.app-pane code { background: #eee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+.app-pane a { color: var(--accent); }
+
+.set-row {
+  display: flex; align-items: center; gap: 10px;
+  background: #fff; border: 1px solid rgba(0,0,0,.08);
+  border-radius: 6px; padding: 12px 14px; margin-bottom: 8px;
+}
+.set-row label { flex: 0 0 110px; font-weight: 600; font-size: 12.5px; }
+.set-row input[type="password"], .set-row input[type="text"] {
+  flex: 1; height: 30px; padding: 0 10px;
+  border: 1px solid rgba(0,0,0,.2); border-radius: 4px;
+  font-size: 12.5px; outline: none;
+}
+.set-row select {
+  flex: 1; height: 30px; border: 1px solid rgba(0,0,0,.2);
+  border-radius: 4px; font-size: 12.5px;
+}
+.set-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.set-actions button {
+  padding: 7px 16px; border-radius: 4px; font-size: 12.5px;
+  border: 1px solid rgba(0,0,0,.15);
+  background: #fff; cursor: pointer;
+}
+.set-actions button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+#set-status { margin-top: 10px; font-size: 12px; min-height: 16px; }
+#set-status.ok { color: #2ea043; }
+#set-status.bad { color: #c42b1c; }
+
+.notepad-area {
+  width: 100%; height: 100%; border: none; resize: none; outline: none;
+  padding: 12px 14px; font: 13px/1.5 Consolas, "Cascadia Mono", monospace;
+  user-select: text;
+}
+
+.universe-area {
+  width: 100%; height: 170px; resize: vertical;
+  border: 1px solid rgba(0,0,0,.2); border-radius: 4px;
+  padding: 10px; outline: none;
+  font: 11.5px/1.5 Consolas, "Cascadia Mono", monospace;
+  user-select: text; margin-bottom: 8px;
+}
+#set-ustatus { font-size: 12px; min-height: 16px; }
+#set-ustatus.ok { color: #2ea043; }
+#set-ustatus.bad { color: #c42b1c; }
+
+/* ---------- alternate wallpapers ---------- */
+
+#desktop.wall-1 {
+  background:
+    radial-gradient(ellipse 55% 50% at 60% 40%, rgba(255,170,80,.55), transparent 62%),
+    radial-gradient(ellipse 50% 55% at 38% 62%, rgba(255,90,120,.45), transparent 65%),
+    radial-gradient(ellipse 40% 40% at 70% 70%, rgba(160,60,200,.4), transparent 65%),
+    linear-gradient(135deg, #2a0f3d 0%, #4a1440 50%, #1d0b33 100%);
+}
+#desktop.wall-2 {
+  background:
+    radial-gradient(ellipse 60% 45% at 55% 35%, rgba(60,230,180,.4), transparent 60%),
+    radial-gradient(ellipse 45% 55% at 40% 65%, rgba(30,160,220,.35), transparent 62%),
+    radial-gradient(ellipse 35% 35% at 68% 60%, rgba(140,255,200,.25), transparent 65%),
+    linear-gradient(160deg, #04150f 0%, #072a22 55%, #031510 100%);
+}
+
+/* ---------- context menu ---------- */
+
+#ctxmenu {
+  position: fixed; z-index: 8000;
+  min-width: 200px;
+  background: var(--acrylic);
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.35);
+  padding: 5px;
+}
+.ctx-item {
+  padding: 8px 12px; border-radius: 4px;
+  font-size: 12.5px; color: #1a1a1a;
+  cursor: default; white-space: nowrap;
+}
+.ctx-item:hover { background: rgba(0,0,0,.07); }
+
+/* ---------- toast ---------- */
+
+#toast {
+  position: fixed; left: 50%; bottom: 64px;
+  transform: translateX(-50%) translateY(12px);
+  background: rgba(28,28,28,.92); color: #fff;
+  font-size: 12.5px; padding: 9px 18px;
+  border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease;
+  z-index: 8500;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- deep-dream indicator: regen icon pulses while a fragment streams ---------- */
+
+.window.deep-dreaming .t-regen { animation: dreampulse 1s ease-in-out infinite; }
+@keyframes dreampulse { 50% { opacity: .3; } }
+
+/* ---------- snap layouts ---------- */
+
+#snap-preview {
+  position: fixed; z-index: 90;
+  background: rgba(76, 194, 255, .18);
+  border: 1.5px solid rgba(76, 194, 255, .55);
+  border-radius: 8px;
+  backdrop-filter: blur(2px);
+  transition: left .1s ease, top .1s ease, width .1s ease, height .1s ease;
+  pointer-events: none;
+}
+#snap-preview.hidden { display: none; }
+
+/* ---------- tray spend meter ---------- */
+
+#spend {
+  font-size: 11px; color: #1a1a1a;
+  background: rgba(0,0,0,.05);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+#spend:empty { display: none; }
+
+/* ---------- taskbar copilot button ---------- */
+
+#copilot-btn {
+  width: 44px; height: 40px;
+  border: none; background: transparent; border-radius: 4px;
+  font-size: 18px; cursor: default;
+}
+#copilot-btn:hover { background: rgba(0,0,0,.06); }
+
+/* ---------- Copilot panel ---------- */
+
+#copilot {
+  position: fixed;
+  right: 12px; bottom: calc(var(--taskbar-h) + 10px);
+  width: 380px; max-width: 92vw;
+  height: min(560px, 74vh);
+  background: var(--acrylic);
+  backdrop-filter: blur(32px) saturate(1.4);
+  -webkit-backdrop-filter: blur(32px) saturate(1.4);
+  border: 1px solid rgba(0,0,0,.1);
+  border-radius: 8px;
+  box-shadow: 0 16px 42px rgba(0,0,0,.4);
+  display: flex; flex-direction: column;
+  z-index: 6000;
+}
+#copilot.hidden { display: none; }
+
+.cp-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px 8px;
+  font-size: 13.5px; font-weight: 600; color: #1a1a1a;
+}
+.cp-head button {
+  border: none; background: transparent; font-size: 14px;
+  border-radius: 4px; width: 28px; height: 28px; cursor: default;
+}
+.cp-head button:hover { background: rgba(0,0,0,.07); }
+
+#cp-msgs {
+  flex: 1; overflow-y: auto;
+  padding: 4px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.cp-msg {
+  max-width: 85%;
+  padding: 8px 12px; border-radius: 10px;
+  font-size: 12.5px; line-height: 1.45;
+  user-select: text; white-space: pre-wrap; word-break: break-word;
+}
+.cp-user {
+  align-self: flex-end;
+  background: var(--accent); color: #fff;
+  border-bottom-right-radius: 3px;
+}
+.cp-bot {
+  align-self: flex-start;
+  background: #fff; color: #1a1a1a;
+  border: 1px solid rgba(0,0,0,.08);
+  border-bottom-left-radius: 3px;
+}
+.cp-tool {
+  align-self: flex-start;
+  font-size: 11px; color: #666; font-style: italic;
+  padding: 0 4px;
+}
+
+#cp-form {
+  display: flex; gap: 6px;
+  padding: 10px 12px 12px;
+}
+#cp-form input {
+  flex: 1; height: 34px; padding: 0 12px;
+  border: 1px solid rgba(0,0,0,.15);
+  border-bottom: 2px solid var(--accent);
+  border-radius: 6px; font-size: 12.5px; outline: none;
+  background: #fff;
+}
+#cp-form button {
+  width: 40px; height: 34px;
+  border: none; border-radius: 6px;
+  background: var(--accent); color: #fff;
+  font-size: 14px; cursor: pointer;
+}

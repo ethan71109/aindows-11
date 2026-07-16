@@ -1,0 +1,205 @@
+/* ============ AIndows 11 — app registry & built-in apps ============
+ * Only three apps are real (Welcome, Notepad, Settings).
+ * Every other app is hallucinated by Claude at the moment you open it —
+ * and can keep dreaming deeper through the dream() bridge.
+ */
+
+const APP_REGISTRY = [
+  // ---- real, built-in ----
+  { id: "welcome",  name: "Welcome",       icon: "👋", builtin: "welcome",  desktop: true,  w: 580, h: 500 },
+  { id: "notepad",  name: "Notepad",       icon: "📝", builtin: "notepad",  desktop: true,  w: 560, h: 420 },
+  { id: "settings", name: "Settings",      icon: "⚙️", builtin: "settings", desktop: true,  w: 640, h: 560 },
+
+  // ---- imagined by the AI on open ----
+  { id: "explorer",   name: "File Explorer", icon: "📁", desktop: true,  w: 760, h: 520,
+    desc: "A Windows 11 File Explorer: left sidebar (Home, Desktop, Documents, Downloads, Pictures, Music, This PC), breadcrumb path bar, a main pane of plausible folders and files with names/dates/sizes. Folders MUST actually open: on double-click, dream() the folder's contents and swap them into the file pane (update the breadcrumb too, with working back navigation)" },
+  { id: "browser",    name: "Browser",        icon: "🌐", desktop: false, w: 820, h: 560,
+    desc: "A web browser onto an imagined internet — address bar, tabs, and a fake news-portal homepage. Every link MUST work: intercept clicks and dream() the next page (pass the invented URL and what the page should be), then render it and update the address bar, with working back/forward history" },
+  { id: "calculator", name: "Calculator",     icon: "🧮", desktop: true,  w: 340, h: 500,
+    desc: "A fully functional Windows 11 calculator with working arithmetic, keyboard support, and a small history panel" },
+  { id: "paint",      name: "Paint",          icon: "🎨", desktop: true,  w: 760, h: 540,
+    desc: "A working paint app: canvas you can actually draw on with the mouse, color palette, brush sizes, eraser, clear button" },
+  { id: "minesweeper",name: "Minesweeper",    icon: "💣", desktop: true,  w: 480, h: 560,
+    desc: "A fully playable Minesweeper: 9x9 grid with 10 mines, left-click reveal, right-click flag, flood fill on empty cells, win/lose detection, restart button, mine counter and timer" },
+  { id: "weather",    name: "Weather",        icon: "⛅", desktop: true,  w: 640, h: 480,
+    desc: "A Windows 11 weather app with an invented-but-plausible current forecast, hourly strip, 7-day outlook, and a city switcher. When a new city is picked, dream() that city's forecast panel" },
+  { id: "music",      name: "Media Player",   icon: "🎵", desktop: false, w: 680, h: 500,
+    desc: "A music player library full of songs and albums that were never recorded, with a now-playing bar whose play button animates a fake progress bar. Clicking an album dreams() its full tracklist and liner notes" },
+  { id: "photos",     name: "Photos",         icon: "🖼️", desktop: false, w: 720, h: 520,
+    desc: "A photo gallery of 'photos' rendered as varied inline SVG / CSS-gradient scenes (sunsets, mountains, city nights) in a grid, with a lightbox view on click and invented dates/filenames" },
+  { id: "mail",       name: "Mail",           icon: "✉️", desktop: false, w: 760, h: 520,
+    desc: "An email client with folders, an inbox of emails that were never sent (newsletters, a landlord, an old friend, suspicious spam), and a reading pane. Opening an email dreams() its full body; replying and sending dreams() the sender's reply back after a moment" },
+  { id: "terminal",   name: "Terminal",       icon: "⌨️", desktop: false, w: 680, h: 440,
+    desc: "A dark-themed terminal that actually responds to typed commands: help, dir, cd, echo, whoami, ipconfig, cls, and a few joke commands — inventing plausible output for each. For an unknown command, dream() what its output would plausibly be and print it" },
+  { id: "store",      name: "Store",          icon: "🛍️", desktop: false, w: 760, h: 540,
+    desc: "An app store full of apps that don't exist, with ratings, fake reviews, editor's picks, and Install buttons that animate a download then say Installed. Clicking an app dreams() its full store page with screenshots described in CSS/SVG" },
+];
+
+/* ---------- built-in app renderers (return a DOM node) ---------- */
+
+const BUILTINS = {
+
+  welcome() {
+    const el = document.createElement("div");
+    el.className = "app-pane";
+    el.innerHTML = `
+      <h2>Welcome to AIndows 11</h2>
+      <p>This looks like Windows. It isn't. Only three apps on this machine actually
+         exist as code — this one, Notepad, and Settings.</p>
+      <p><b>Every other app is dreamed into existence by an AI the moment you open it</b> —
+         and the dream has no bottom. Folders open. Links go somewhere. Emails get replies.
+         Each level deeper is imagined the moment you click it.</p>
+      <h3>Getting started</h3>
+      <p>1. Open <b>⚙️ Settings</b> and paste a Claude API key
+         (get one at <a href="https://platform.claude.com" target="_blank" rel="noreferrer">platform.claude.com</a>).
+         The key is stored only in this browser's localStorage and sent only to Anthropic.</p>
+      <p>2. Double-click any desktop icon and <b>watch the app being written, live</b>, before it opens.</p>
+      <p>3. The real magic: open the <b>Start menu</b>, type any app that should exist —
+         <code>Dream Journal</code>, <code>Excuse Generator 3000</code>, <code>Cat Stock Exchange</code> —
+         and press <b>Enter</b>. It gets built on the spot and pinned to your desktop.</p>
+      <h3>Good to know</h3>
+      <p>• <b>🤖 Copilot</b> lives in the taskbar. Ask it to open apps, summon new ones,
+         save notes to your disk, or rewrite the universe — it acts, not just talks.</p>
+      <p>• <b>Files are real now.</b> Save a drawing in Paint or a note in an editor and it
+         lands on the <i>dream disk</i> — it'll be there in File Explorer, in other apps,
+         and after a reboot.</p>
+      <p>• <b>Drag windows to screen edges</b> to snap them — halves at the sides,
+         quarters at the corners, top edge to maximize.</p>
+      <p>• The tray shows a running <b>≈$ cost estimate</b> so you always know what the
+         dreaming costs.</p>
+      <p>• <b>Right-click</b> the desktop or any icon for options — re-dream, export, unpin, change wallpaper.</p>
+      <p>• <b>💾 Export</b> (title bar or right-click) saves any dreamed app as a standalone
+         <code>.html</code> file you can send to friends.</p>
+      <p>• Apps share one canon — the same you, the same files, the same city — set in
+         Settings under <b>Universe</b>. Change it and re-dream to live a different life.</p>
+      <p>• Dreamed apps and every level you drill into are cached, so revisiting is instant
+         and free. 🔄 re-dreams from scratch. Fresh dreams cost a few cents each (Opus) or
+         less (Haiku).</p>
+      <p>• Dreamed code runs in a sandboxed iframe — it can never see your key or your data.</p>`;
+    return el;
+  },
+
+  notepad() {
+    const el = document.createElement("textarea");
+    el.className = "notepad-area";
+    el.spellcheck = false;
+    el.placeholder = "The only text on this computer that a human actually typed…\n(whatever you write here becomes canon — dreamed apps will treat it as ideas.txt)";
+    el.value = localStorage.getItem("aindows.notepad") || "";
+    el.addEventListener("input", () => localStorage.setItem("aindows.notepad", el.value));
+    return el;
+  },
+
+  settings() {
+    const s = AI.getSettings();
+    const el = document.createElement("div");
+    el.className = "app-pane";
+    el.innerHTML = `
+      <h2>Settings</h2>
+      <h3>Imagination engine</h3>
+      <div class="set-row">
+        <label for="set-key">API key</label>
+        <input id="set-key" type="password" placeholder="sk-ant-…" autocomplete="off" />
+        <button id="set-eye" title="Show/hide" style="border:none;background:none;cursor:pointer">👁️</button>
+      </div>
+      <div class="set-row">
+        <label for="set-model">Model</label>
+        <select id="set-model">
+          <option value="claude-opus-4-8">Claude Opus 4.8 — best apps (default)</option>
+          <option value="claude-sonnet-5">Claude Sonnet 5 — fast &amp; great</option>
+          <option value="claude-haiku-4-5">Claude Haiku 4.5 — fastest &amp; cheapest</option>
+        </select>
+      </div>
+      <div class="set-actions">
+        <button class="primary" id="set-save">Save</button>
+        <button id="set-test">Test connection</button>
+        <button id="set-clearcache">Forget all dreams (<span id="set-cachecount">0</span> cached)</button>
+      </div>
+      <div id="set-status"></div>
+
+      <h3>Universe</h3>
+      <p>The shared canon every dreamed app stays consistent with — who you are, what's on
+         your disk, the weather outside. Edit it (valid JSON) and re-dream apps to reroll
+         your reality.</p>
+      <textarea id="set-universe" class="universe-area" spellcheck="false"></textarea>
+      <div class="set-actions">
+        <button class="primary" id="set-usave">Save universe</button>
+        <button id="set-ureset">Reset to default</button>
+      </div>
+      <div id="set-ustatus"></div>
+
+      <h3>Dream disk</h3>
+      <p><span id="set-filecount">0</span> real file(s) saved by apps and Copilot.
+         These persist across reboots and appear in every file-listing app.</p>
+      <div class="set-actions">
+        <button id="set-clearfiles">Delete all my files</button>
+      </div>
+
+      <h3>About</h3>
+      <p>Your key lives in this browser's localStorage and is sent only to
+         <code>api.anthropic.com</code>. Dreamed apps run sandboxed and cannot read it.</p>`;
+
+    const $ = (q) => el.querySelector(q);
+    $("#set-key").value = s.apiKey;
+    $("#set-model").value = s.model;
+    $("#set-cachecount").textContent = AI.cacheCount();
+    $("#set-universe").value = JSON.stringify(AI.getUniverse(), null, 2);
+    $("#set-filecount").textContent = FS.count();
+
+    $("#set-clearfiles").addEventListener("click", () => {
+      FS.clear();
+      $("#set-filecount").textContent = "0";
+      status("#set-ustatus", "Dream disk wiped.", true);
+    });
+
+    const status = (sel, msg, ok) => {
+      const n = $(sel);
+      n.textContent = msg;
+      n.className = ok === undefined ? "" : ok ? "ok" : "bad";
+    };
+
+    $("#set-eye").addEventListener("click", () => {
+      const k = $("#set-key");
+      k.type = k.type === "password" ? "text" : "password";
+    });
+
+    $("#set-save").addEventListener("click", () => {
+      AI.saveSettings({ apiKey: $("#set-key").value.trim(), model: $("#set-model").value });
+      status("#set-status", "Saved.", true);
+    });
+
+    $("#set-test").addEventListener("click", async () => {
+      AI.saveSettings({ apiKey: $("#set-key").value.trim(), model: $("#set-model").value });
+      if (!AI.hasKey()) return status("#set-status", "Enter a key first.", false);
+      status("#set-status", "Testing…");
+      try {
+        await AI.testKey();
+        status("#set-status", "✔ Connected — the imagination engine is online.", true);
+      } catch (e) {
+        status("#set-status", "✘ " + e.message, false);
+      }
+    });
+
+    $("#set-clearcache").addEventListener("click", () => {
+      AI.clearAllCached();
+      $("#set-cachecount").textContent = "0";
+      status("#set-status", "All dreams forgotten. Apps will be re-imagined on next open.", true);
+    });
+
+    $("#set-usave").addEventListener("click", () => {
+      try {
+        AI.saveUniverse(JSON.parse($("#set-universe").value));
+        status("#set-ustatus", "Universe saved. Re-dream apps (🔄) to see the new reality.", true);
+      } catch {
+        status("#set-ustatus", "That's not valid JSON — nothing saved.", false);
+      }
+    });
+
+    $("#set-ureset").addEventListener("click", () => {
+      AI.saveUniverse(AI.defaultUniverse());
+      $("#set-universe").value = JSON.stringify(AI.defaultUniverse(), null, 2);
+      status("#set-ustatus", "Universe reset to default.", true);
+    });
+
+    return el;
+  },
+};
