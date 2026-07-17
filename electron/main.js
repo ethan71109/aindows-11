@@ -122,8 +122,12 @@ ipcMain.handle("hostfs:list", async (_e, { dir, app: appName }) => {
   const target = dir ? path.resolve(dir) : await ensureHome();
   await gate("read", target, true, appName);
   const ents = await fsp.readdir(target, { withFileTypes: true });
+  // folders first, then files, each alphabetical — like real Explorer
+  ents.sort((a, b) =>
+    (b.isDirectory() - a.isDirectory()) || a.name.localeCompare(b.name, undefined, { numeric: true })
+  );
   const out = [];
-  for (const d of ents.slice(0, 500)) {
+  for (const d of ents.slice(0, 1000)) {
     const full = path.join(target, d.name);
     let size = 0, modified = "";
     try {
@@ -138,6 +142,28 @@ ipcMain.handle("hostfs:list", async (_e, { dir, app: appName }) => {
     });
   }
   return out;
+});
+
+// Real drives (This PC) — probe C: … Z:, with free/total space where available.
+ipcMain.handle("hostfs:drives", async () => {
+  const out = [];
+  for (let i = 67; i <= 90; i++) {
+    const root = String.fromCharCode(i) + ":\\";
+    try { await fsp.access(root); } catch { continue; }
+    let totalBytes = 0, freeBytes = 0;
+    try { const s = await fsp.statfs(root); totalBytes = s.blocks * s.bsize; freeBytes = s.bfree * s.bsize; } catch {}
+    out.push({ name: String.fromCharCode(i) + ":", path: root, totalBytes, freeBytes });
+  }
+  return out;
+});
+
+// The user's real special folders, for Explorer quick-access.
+ipcMain.handle("hostfs:userdirs", async () => {
+  const get = (k) => { try { return app.getPath(k); } catch { return null; } };
+  return {
+    home: get("home"), desktop: get("desktop"), documents: get("documents"),
+    downloads: get("downloads"), pictures: get("pictures"), music: get("music"), videos: get("videos"),
+  };
 });
 
 ipcMain.handle("hostfs:read", async (_e, { path: p, app: appName }) => {

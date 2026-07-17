@@ -41,6 +41,8 @@ The sandbox also provides a global "os" object:
   os.saveFile(path, content, folder?) -> Promise<{ok}>
   os.deleteFile(path) -> Promise<{ok}>
   os.open(path) -> opens that file in its OWN dedicated viewer/editor window (use this when the user double-clicks a FILE, rather than previewing inline)
+  os.drives() -> Promise<[{name:"C:", path:"C:\\", totalBytes, freeBytes}]> — the user's REAL drives (This PC). Returns [] when real files aren't enabled.
+  os.userDirs() -> Promise<{home, desktop, documents, downloads, pictures, music, videos}> — absolute paths to the user's REAL special folders (for quick-access). Empty object when real files aren't enabled.
 These are the user's files (either a persistent in-browser "dream disk" or — if they've connected it — their REAL PC filesystem; either way the app code is identical). Items from os.listFiles() include both a "name" (for display) and a "path". When reading, saving, or deleting, pass the "path" when you have one (it falls back to name). To browse into a subfolder, call os.listFiles(folderPath). On real files, each access pops a confirmation the user must approve, and a denial rejects the promise — always wrap in try/catch and degrade gracefully. Rules:
 - Any app with a Save / Export / Download action must actually save via os.saveFile (editors save text; Paint saves the canvas as a data-URL .png; etc.). Confirm the save in the UI.
 - NON-NEGOTIABLE for any app that displays files (file managers, open dialogs, attachment pickers, galleries): on startup, call os.listFiles() and merge the real files into the listing alongside the canon fake ones, marked so the user can tell they're real (e.g. a small ✨ badge). Follow this pattern:

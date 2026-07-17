@@ -323,6 +323,8 @@
       deleteFile: (path)                  => __rpc("fs.remove", { path }),
       open:       (path)                  => __rpc("open",      { path }),
       launch:     (name)                  => __rpc("launch",    { name }),
+      drives:     ()                      => __rpc("fs.drives", {}),
+      userDirs:   ()                      => __rpc("fs.userdirs", {}),
     };
   </script>`;
 
@@ -521,6 +523,8 @@
         case "fs.remove": reply(await hostRemove(args.path ?? args.name, rec.app.name)); break;
         case "open":      reply(openDreamedFile(args.path ?? args.name)); break;
         case "launch":    reply(await hostLaunch(args.name, rec.app.name)); break;
+        case "fs.drives": reply(realFilesOn() ? await window.hostFS.drives() : []); break;
+        case "fs.userdirs": reply(realFilesOn() ? await window.hostFS.userDirs() : {}); break;
         default:          reply(null, `unknown os method: ${d.method}`);
       }
     } catch (err) {
