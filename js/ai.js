@@ -454,11 +454,8 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
       ` Materialize it.`;
     if (seedData) {
       user +=
-        `\n\nSEED DATA — the user's REAL data, read from actual files on their PC. ` +
-        `This is the source of truth: build the app POPULATED FROM this data (real playlists, ` +
-        `real settings, real files, real games — whatever it contains) and do not invent content ` +
-        `the seed already provides. If the seed is sparse or partly binary, use what's readable ` +
-        `and fill only the gaps tastefully.\n<<<SEED\n${seedData}\nSEED>>>`;
+        `\n\nSEED DATA — the user's REAL data for "${name}", read from actual files on their PC. ` +
+        `First, IDENTIFY exactly what real application this is, using the FILE STRUCTURE (folder/file names are strong clues even when a file is unreadable) plus your own knowledge of "${name}" — then recreate that specific app's real interface faithfully (its actual layout, panels, and features), POPULATED FROM this data as the source of truth: use the real names, values, playlists, settings, saves, games, accounts, and history exactly as they appear. Do not invent content the data already provides, and do not contradict it. Where the data doesn't cover something, keep it minimal and honest (e.g. "no recent items") rather than fabricating. Match the real app's look precisely.\n<<<SEED\n${seedData}\nSEED>>>`;
     }
 
     const { text, stopReason } = await streamText({

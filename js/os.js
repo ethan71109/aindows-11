@@ -494,40 +494,59 @@
     return r;
   }
 
-  // Read a bounded, readable slice of the given files/folders into one text
-  // block that seeds a "reflected" app's generation. Reads go through hostRead/
-  // hostList, so they're gated in real-files mode (one "allow this folder" per dir).
-  const SEED_READABLE = /\.(txt|md|json|jsonc|cfg|ini|xml|vdf|acf|log|csv|tsv|ya?ml|conf|prefs|list|m3u8?|url|toml|properties)$/i;
+  // Build a rich seed for a reflected app: a full recursive MANIFEST of the
+  // app's data (every file's name + size, even binary ones), plus as much
+  // readable CONTENT as fits, prioritized toward files that hold real data.
+  const SEED_READABLE = /\.(txt|md|json|jsonc|cfg|ini|xml|vdf|acf|log|csv|tsv|ya?ml|conf|prefs|list|m3u8?|url|toml|properties|manifest|state|session|storage|db\.json)$/i;
+  const SEED_PRIORITY = /(config|setting|pref|profile|library|playlist|queue|save|savegame|game|user|account|login|history|recent|favorite|bookmark|manifest|catalog|data|state|collection|track|song|album)/i;
+  const looksBinary = (s) => s.indexOf(String.fromCharCode(0)) !== -1; // a NUL byte means binary -> skip
+
   async function seedBuilder(paths, appName) {
-    const CAP = 40000, PER_FILE = 12000;
-    let out = "", used = 0;
-    const addFile = async (fp, label) => {
-      if (used >= CAP) return;
-      let c;
-      try { c = await hostRead(fp, appName); } catch { return; }
-      if (typeof c !== "string" || c.startsWith("data:")) return; // skip binary/images
-      c = c.slice(0, PER_FILE);
-      const block = `\n--- ${label || fp} ---\n${c}\n`;
-      out += block.slice(0, Math.max(0, CAP - used));
-      used = out.length;
-    };
+    const CONTENT_CAP = 100000, PER_FILE = 22000, MANIFEST_LINES = 400;
+    let manifest = "", content = "", used = 0;
+    const candidates = []; // {path, rel, size}
+
     for (const p of (paths || [])) {
-      if (used >= CAP) break;
-      let entries = null;
-      if (realFilesOn()) { try { const e = await hostList(p, appName); if (Array.isArray(e)) entries = e; } catch {} }
-      if (entries) {
-        out += `\n[folder: ${p}] (${entries.length} items)\n`;
-        for (const e of entries) {
-          if (used >= CAP) break;
-          if (e.kind === "folder") continue;
-          if (!SEED_READABLE.test(e.name || "")) continue;
-          await addFile(e.path || e.name, e.name);
-        }
+      if (!realFilesOn()) { candidates.push({ path: p, rel: p, size: 0 }); continue; }
+      let tree = [];
+      try { tree = await window.hostFS.tree(p, appName); } catch {}
+      if (tree.length) {
+        const shown = tree.slice(0, MANIFEST_LINES)
+          .map((t) => (t.isFolder ? "📁 " : "   ") + (t.rel || t.name) + (t.isFolder ? "/" : ` — ${fmtBytes(t.size)}`))
+          .join("\n");
+        manifest += `\n[${p}]  (${tree.length} entries)\n${shown}\n`;
+        for (const t of tree) if (!t.isFolder && SEED_READABLE.test(t.name || "")) candidates.push({ path: t.path, rel: t.rel || t.name, size: t.size || 0 });
       } else {
-        await addFile(p);
+        candidates.push({ path: p, rel: p, size: 0 });
       }
     }
-    return out.trim();
+
+    // Read the most-relevant files first (priority-named, then smallest).
+    candidates.sort((a, b) => (SEED_PRIORITY.test(b.rel) - SEED_PRIORITY.test(a.rel)) || (a.size - b.size));
+    for (const f of candidates) {
+      if (used >= CONTENT_CAP) break;
+      let c;
+      try { c = await hostRead(f.path, appName); } catch { continue; }
+      if (typeof c !== "string" || c.startsWith("data:") || looksBinary(c)) continue;
+      c = c.slice(0, PER_FILE);
+      const block = `\n--- ${f.rel} ---\n${c}\n`;
+      content += block.slice(0, Math.max(0, CONTENT_CAP - used));
+      used = content.length;
+    }
+
+    const parts = [];
+    if (manifest.trim())
+      parts.push("FILE STRUCTURE — every file this app stores (use the names/sizes to infer what data exists, even for files we can't read):\n" + manifest.trim());
+    if (content.trim())
+      parts.push("READABLE FILE CONTENTS (the app's actual settings, library, saves, etc.):\n" + content.trim());
+    return parts.join("\n\n");
+  }
+
+  function fmtBytes(n) {
+    n = n || 0;
+    if (n < 1024) return n + "B";
+    if (n < 1048576) return (n / 1024).toFixed(0) + "KB";
+    return (n / 1048576).toFixed(1) + "MB";
   }
 
   // Shell side: answer os RPCs coming from sandboxed app iframes.

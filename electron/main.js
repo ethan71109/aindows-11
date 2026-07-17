@@ -168,6 +168,38 @@ ipcMain.handle("hostfs:drives", async () => {
   return out;
 });
 
+// Recursive manifest of a folder (bounded) — every file's relative path + size,
+// so a reflection can see the whole shape of an app's data (even binary files).
+ipcMain.handle("hostfs:tree", async (_e, { dir, app: appName }) => {
+  const root = path.resolve(String(dir || ""));
+  await gate("read", root, true, appName);
+  let rootStat;
+  try { rootStat = await fsp.stat(root); } catch { return []; }
+  if (!rootStat.isDirectory())
+    return [{ path: root, name: path.basename(root), isFolder: false, size: rootStat.size, rel: path.basename(root) }];
+  const out = [];
+  const MAX = 4000, MAX_DEPTH = 5;
+  async function walk(d, depth) {
+    if (out.length >= MAX || depth > MAX_DEPTH) return;
+    let ents;
+    try { ents = await fsp.readdir(d, { withFileTypes: true }); } catch { return; }
+    for (const e of ents) {
+      if (out.length >= MAX) break;
+      const full = path.join(d, e.name);
+      if (e.isDirectory()) {
+        out.push({ path: full, name: e.name, isFolder: true, rel: path.relative(root, full) });
+        await walk(full, depth + 1);
+      } else {
+        let size = 0;
+        try { size = (await fsp.stat(full)).size; } catch {}
+        out.push({ path: full, name: e.name, isFolder: false, size, rel: path.relative(root, full) });
+      }
+    }
+  }
+  await walk(root, 0);
+  return out;
+});
+
 // The user's real special folders, for Explorer quick-access.
 ipcMain.handle("hostfs:userdirs", async () => {
   const get = (k) => { try { return app.getPath(k); } catch { return null; } };

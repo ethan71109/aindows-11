@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld("hostFS", {
   remove: (path, app) => ipcRenderer.invoke("hostfs:remove", { path, app }),
   drives: () => ipcRenderer.invoke("hostfs:drives"),
   userDirs: () => ipcRenderer.invoke("hostfs:userdirs"),
+  tree: (dir, app) => ipcRenderer.invoke("hostfs:tree", { dir, app }),
   setFullAccess: (on) => ipcRenderer.invoke("hostfs:setfullaccess", on),
 });
 
