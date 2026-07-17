@@ -128,11 +128,22 @@ const BUILTINS = {
       </div>
       <div id="set-ustatus"></div>
 
+      <h3>Real PC files <span id="set-realfs-badge"></span></h3>
+      <p>Let AIndows and its dreamed apps read and write the <b>actual files on this
+         computer</b>. Only works in the desktop app. <b>Every</b> real read, write, and
+         delete asks you to approve it first — and the app code is written by AI, so keep
+         that in mind before you allow anything.</p>
+      <div class="set-row">
+        <label for="set-realfs">Use my real PC files</label>
+        <input id="set-realfs" type="checkbox" style="flex:0 0 auto;width:18px;height:18px" />
+        <span id="set-realfs-note" style="font-size:12px;color:#666"></span>
+      </div>
+
       <h3>Dream disk</h3>
-      <p><span id="set-filecount">0</span> real file(s) saved by apps and Copilot.
-         These persist across reboots and appear in every file-listing app.</p>
+      <p><span id="set-filecount">0</span> file(s) saved to the in-OS dream disk (used when
+         real PC files are off). These persist across reboots and appear in file-listing apps.</p>
       <div class="set-actions">
-        <button id="set-clearfiles">Delete all my files</button>
+        <button id="set-clearfiles">Delete all dream-disk files</button>
       </div>
 
       <h3>About</h3>
@@ -150,6 +161,27 @@ const BUILTINS = {
       FS.clear();
       $("#set-filecount").textContent = "0";
       status("#set-ustatus", "Dream disk wiped.", true);
+    });
+
+    // Real PC files toggle — only meaningful in the desktop app.
+    const hostReady = !!(window.hostFS && window.hostFS.available);
+    const realBox = $("#set-realfs");
+    realBox.checked = localStorage.getItem("aindows.realfs") === "1";
+    realBox.disabled = !hostReady;
+    $("#set-realfs-badge").textContent = hostReady ? "🖥️ desktop app" : "";
+    $("#set-realfs-note").textContent = hostReady
+      ? (realBox.checked ? "on — apps can reach your real files (with your approval)" : "off — apps use the dream disk")
+      : "Only available in the desktop app (.exe). In the browser, apps always use the dream disk.";
+    realBox.addEventListener("change", () => {
+      localStorage.setItem("aindows.realfs", realBox.checked ? "1" : "0");
+      $("#set-realfs-note").textContent = realBox.checked
+        ? "on — apps can reach your real files (with your approval)"
+        : "off — apps use the dream disk";
+      status("#set-ustatus",
+        realBox.checked
+          ? "Real PC files ON. Re-dream file apps (🔄) so they use them, and expect approval prompts."
+          : "Real PC files off — back to the dream disk.",
+        true);
     });
 
     const status = (sel, msg, ok) => {

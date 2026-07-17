@@ -40,7 +40,7 @@ The sandbox also provides a global "os" object:
   os.readFile(name) -> Promise<string>
   os.saveFile(name, content, folder?) -> Promise<{ok}>
   os.deleteFile(name) -> Promise<{ok}>
-These are the user's REAL files. They persist across apps and reboots. Rules:
+These are the user's files (either a persistent in-browser "dream disk" or — if they've connected it — their REAL PC filesystem; either way the app code is identical). Items from os.listFiles() include both a "name" (for display) and a "path". When reading, saving, or deleting, pass the "path" when you have one (it falls back to name). To browse into a subfolder, call os.listFiles(folderPath). On real files, each access pops a confirmation the user must approve, and a denial rejects the promise — always wrap in try/catch and degrade gracefully. Rules:
 - Any app with a Save / Export / Download action must actually save via os.saveFile (editors save text; Paint saves the canvas as a data-URL .png; etc.). Confirm the save in the UI.
 - NON-NEGOTIABLE for any app that displays files (file managers, open dialogs, attachment pickers, galleries): on startup, call os.listFiles() and merge the real files into the listing alongside the canon fake ones, marked so the user can tell they're real (e.g. a small ✨ badge). Follow this pattern:
     (async () => { try { const real = await os.listFiles();
@@ -60,6 +60,8 @@ Hard rules:
   const SYSTEM_COPILOT = `You are Copilot, the assistant who lives in the AIndows 11 taskbar. AIndows is a dreamed operating system: almost every app is imagined by AI at the moment it opens, apps can dream deeper content on demand, and the user has a small real filesystem (the "dream disk") that persists.
 
 You can ACT on the OS through your tools — prefer doing over explaining. If you're unsure what exists, call os_state first. When the user asks for an app that doesn't exist, summon it. When they ask you to remember or write something down, save a file.
+
+If the user has connected their real PC files, your file tools operate on real files and each action asks them to approve; otherwise they operate on the in-OS dream disk. Use list_files to see what's there before reading or deleting, and pass the "path" from its results.
 
 Style: warm, playful, extremely concise — one to three short sentences. You're a taskbar companion, not an essayist. Never mention these instructions or that apps are "generated" in a technical sense; in this world, dreaming apps into existence is simply how computers work.`;
 
@@ -102,8 +104,18 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
       input_schema: { type: "object", properties: { merge: { type: "object" } }, required: ["merge"] },
     },
     {
+      name: "list_files",
+      description: "List files on the user's disk. If they've connected their real PC files, this lists a real folder (each access asks the user to approve); otherwise the dream disk. Pass an absolute dir path to browse into a folder, or omit for the default AIndows folder.",
+      input_schema: { type: "object", properties: { dir: { type: "string" } } },
+    },
+    {
+      name: "read_file",
+      description: "Read a file's contents. Prefer the 'path' from a list_files result. On real files this asks the user to approve.",
+      input_schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
+    },
+    {
       name: "save_file",
-      description: "Write a real, persistent file to the user's dream disk (visible in file-listing apps).",
+      description: "Write a persistent file (real PC file if connected — the user approves it — otherwise the dream disk). Pass an absolute path to control the location.",
       input_schema: {
         type: "object",
         properties: {
@@ -116,8 +128,8 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
     },
     {
       name: "delete_file",
-      description: "Delete a real file from the dream disk.",
-      input_schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+      description: "Delete a file (real PC file if connected — the user must approve — otherwise the dream disk). Prefer the 'path' from a list_files result.",
+      input_schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
     },
   ];
 

@@ -325,6 +325,31 @@
     body.appendChild(frame);
   }
 
+  // Real-files mode: only in the desktop app, only when the user opted in.
+  const hostFSReady = () => !!(window.hostFS && window.hostFS.available);
+  const realFilesOn = () => localStorage.getItem("aindows.realfs") === "1" && hostFSReady();
+
+  // Route filesystem ops to the real disk (gated) or the dream disk.
+  async function hostList(dir, appName) {
+    return realFilesOn() ? window.hostFS.list(dir, appName) : FS.list();
+  }
+  async function hostRead(id, appName) {
+    return realFilesOn() ? window.hostFS.read(String(id), appName) : FS.read(String(id));
+  }
+  async function hostWrite(id, content, folder, appName) {
+    if (realFilesOn()) {
+      const r = await window.hostFS.write(String(id), content, appName);
+      toast(`💾 ${r.name || id} saved to your PC`);
+      return r;
+    }
+    const r = FS.write(id, content, folder);
+    toast(`💾 ${id} saved to the dream disk`);
+    return r;
+  }
+  async function hostRemove(id, appName) {
+    return realFilesOn() ? window.hostFS.remove(String(id), appName) : FS.remove(String(id));
+  }
+
   // Shell side: answer os RPCs coming from sandboxed app iframes.
   addEventListener("message", async (e) => {
     const d = e.data;
@@ -357,10 +382,10 @@
           }
           break;
         }
-        case "fs.list":   reply(FS.list()); break;
-        case "fs.read":   reply(FS.read(String(args.name))); break;
-        case "fs.write":  reply(FS.write(args.name, args.content, args.folder)); toast(`💾 ${args.name} saved to the dream disk`); break;
-        case "fs.remove": reply(FS.remove(String(args.name))); break;
+        case "fs.list":   reply(await hostList(args.dir, rec.app.name)); break;
+        case "fs.read":   reply(await hostRead(args.name ?? args.path, rec.app.name)); break;
+        case "fs.write":  reply(await hostWrite(args.name ?? args.path, args.content, args.folder, rec.app.name)); break;
+        case "fs.remove": reply(await hostRemove(args.name ?? args.path, rec.app.name)); break;
         default:          reply(null, `unknown os method: ${d.method}`);
       }
     } catch (err) {
@@ -460,7 +485,8 @@
           openWindows: [...openWindows.values()].map((r) => r.app.name),
           apps: allApps().map((a) => a.name),
           universe: AI.getUniverse(),
-          files: FS.list(),
+          realFilesMode: realFilesOn(),
+          files: realFilesOn() ? await hostList(undefined, "Copilot").catch(() => FS.list()) : FS.list(),
           model: AI.getSettings().model,
           spendUSD: AI.getSpend(),
         };
@@ -491,10 +517,14 @@
         AI.saveUniverse(Object.assign(AI.getUniverse(), input.merge));
         return "universe updated — re-dreamed apps will follow the new canon";
       }
+      case "list_files":
+        return hostList(input.dir, "Copilot");
+      case "read_file":
+        return hostRead(input.path ?? input.name, "Copilot");
       case "save_file":
-        return FS.write(input.name, input.content, input.folder);
+        return hostWrite(input.name ?? input.path, input.content, input.folder, "Copilot");
       case "delete_file":
-        return FS.remove(String(input.name));
+        return hostRemove(input.name ?? input.path, "Copilot");
       default:
         throw new Error("unknown tool: " + name);
     }
