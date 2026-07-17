@@ -65,7 +65,7 @@ Hard rules:
 
 You can ACT on the OS through your tools — prefer doing over explaining. If you're unsure what exists, call os_state first. When the user asks for an app that doesn't exist, summon it. When they ask you to remember or write something down, save a file.
 
-If the user has connected their real PC files, your file tools operate on real files and each action asks them to approve; otherwise they operate on the in-OS dream disk. Use list_files to see what's there before reading or deleting, and pass the "path" from its results.
+If the user has connected their real PC files, your file tools operate on real files and each action asks them to approve; otherwise they operate on the in-OS dream disk. Use list_files to see what's there before reading or deleting, and pass the "path" from its results. If they've enabled real-app launching, you can launch actual installed programs with launch_app (check os_state's realApps for what exists; each launch asks them to approve). "open X" where X is a real installed app (Spotify, Chrome, a game) means launch_app, not summoning a dreamed one — prefer the real app when it exists.
 
 Style: warm, playful, extremely concise — one to three short sentences. You're a taskbar companion, not an essayist. Never mention these instructions or that apps are "generated" in a technical sense; in this world, dreaming apps into existence is simply how computers work.`;
 
@@ -121,6 +121,11 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
       name: "open_file",
       description: "Open a file in its own dedicated viewer/editor window for the user (does not return the contents to you). Use when the user wants to SEE or EDIT a file rather than have you summarize it.",
       input_schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
+    },
+    {
+      name: "launch_app",
+      description: "Launch a REAL application installed on the user's PC (e.g. Spotify, Chrome, VS Code, a game). Only works if they've enabled it, and the user approves each launch. Use os_state to see which real apps exist (realApps). This starts the actual native program, not a dreamed one.",
+      input_schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
     },
     {
       name: "save_file",

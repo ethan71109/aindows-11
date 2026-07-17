@@ -68,6 +68,9 @@ const BUILTINS = {
          seeded with the file's real contents.</p>
       <p>• <b>Drag windows to screen edges</b> to snap them — halves at the sides,
          quarters at the corners, top edge to maximize.</p>
+      <p>• <b>Launch your real apps.</b> Turn on "Launch my real PC apps" in Settings, then
+         type an installed app's name in Start (Spotify, Chrome, a game) and click the 🖥️
+         result — or ask Copilot. It starts the actual program (you approve each launch).</p>
       <p>• <b>Dark mode</b> and a cheaper <b>depth model</b> (for drilling &amp; viewers)
          live in Settings — dark mode themes the dreamed apps too.</p>
       <p>• The tray shows a running <b>≈$ cost estimate</b> so you always know what the
@@ -162,6 +165,17 @@ const BUILTINS = {
         <span id="set-realfs-note" style="font-size:12px;color:#666"></span>
       </div>
 
+      <h3>Launch real apps <span id="set-realapps-badge"></span></h3>
+      <p>Let AIndows launch <b>real programs installed on this PC</b> (from your Start menu) —
+         type an app's name in Start and click the 🖥️ result, or ask Copilot. Desktop app
+         only. Only your installed apps can be launched (never arbitrary commands), and
+         <b>every launch asks you to approve it</b> first.</p>
+      <div class="set-row">
+        <label for="set-realapps">Launch my real PC apps</label>
+        <input id="set-realapps" type="checkbox" style="flex:0 0 auto;width:18px;height:18px" />
+        <span id="set-realapps-note" style="font-size:12px;color:#666"></span>
+      </div>
+
       <h3>Dream disk</h3>
       <p><span id="set-filecount">0</span> file(s) saved to the in-OS dream disk (used when
          real PC files are off). These persist across reboots and appear in file-listing apps.</p>
@@ -216,6 +230,24 @@ const BUILTINS = {
         realBox.checked
           ? "Real PC files ON. Re-dream file apps (🔄) so they use them, and expect approval prompts."
           : "Real PC files off — back to the dream disk.",
+        true);
+    });
+
+    // Launch real apps toggle — only meaningful in the desktop app.
+    const appsReady = !!(window.hostApps && window.hostApps.available);
+    const appsBox = $("#set-realapps");
+    appsBox.checked = localStorage.getItem("aindows.realapps") === "1";
+    appsBox.disabled = !appsReady;
+    $("#set-realapps-badge").textContent = appsReady ? "🖥️ desktop app" : "";
+    const appsNote = () => appsReady
+      ? (appsBox.checked ? "on — type an app in Start and click the 🖥️ result (you approve each launch)" : "off")
+      : "Only available in the desktop app (.exe).";
+    $("#set-realapps-note").textContent = appsNote();
+    appsBox.addEventListener("change", () => {
+      localStorage.setItem("aindows.realapps", appsBox.checked ? "1" : "0");
+      $("#set-realapps-note").textContent = appsNote();
+      status("#set-ustatus",
+        appsBox.checked ? "Real-app launching ON — your installed apps now show in Start search." : "Real-app launching off.",
         true);
     });
 

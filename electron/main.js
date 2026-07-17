@@ -164,6 +164,65 @@ ipcMain.handle("hostfs:remove", async (_e, { path: p, app: appName }) => {
   return { ok: true };
 });
 
+/* ---------------- real installed apps, gated ---------------- */
+
+// The user's real installed apps = the shortcuts in the Windows Start Menu.
+// We only ever launch something from THIS list (by opening its .lnk), so there
+// is no arbitrary-command execution — just "the app that's already installed".
+let hostAppsCache = null, hostAppsCacheAt = 0;
+async function listHostApps() {
+  if (hostAppsCache && Date.now() - hostAppsCacheAt < 60000) return hostAppsCache;
+  const dirs = [
+    path.join(process.env.ProgramData || "C:\\ProgramData", "Microsoft", "Windows", "Start Menu", "Programs"),
+    path.join(app.getPath("appData"), "Microsoft", "Windows", "Start Menu", "Programs"),
+  ];
+  const found = new Map();
+  for (const dir of dirs) {
+    let entries = [];
+    try { entries = await fsp.readdir(dir, { recursive: true, withFileTypes: true }); } catch { continue; }
+    for (const e of entries) {
+      if (!e.isFile() || !e.name.toLowerCase().endsWith(".lnk")) continue;
+      const base = e.name.slice(0, -4);
+      if (/^uninstall|^readme/i.test(base)) continue; // skip obvious non-apps
+      const parent = e.parentPath || e.path || dir;
+      const key = base.toLowerCase();
+      if (!found.has(key)) found.set(key, { name: base, path: path.join(parent, e.name) });
+    }
+  }
+  hostAppsCache = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
+  hostAppsCacheAt = Date.now();
+  return hostAppsCache;
+}
+
+const launchGrants = new Set(); // app names the user said "always allow" this session
+
+ipcMain.handle("hostapps:list", async () => (await listHostApps()).map((a) => ({ name: a.name })));
+
+ipcMain.handle("hostapps:launch", async (_e, { name, app: appName }) => {
+  const apps = await listHostApps();
+  const q = String(name || "").toLowerCase();
+  const match = apps.find((a) => a.name.toLowerCase() === q)
+    || apps.find((a) => a.name.toLowerCase().includes(q));
+  if (!match) throw new Error(`No installed app matching "${name}".`);
+  if (!launchGrants.has(match.name)) {
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: "question",
+      buttons: ["Deny", "Launch", "Always allow this app"],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+      title: "Launch a real app?",
+      message: `${appName || "AIndows"} wants to start a real program on your PC:`,
+      detail: match.name + "\n" + match.path + "\n\nThis launches an actual installed application.",
+    });
+    if (response === 0) throw new Error("Launch denied.");
+    if (response === 2) launchGrants.add(match.name);
+  }
+  const err = await shell.openPath(match.path);
+  if (err) throw new Error(err);
+  return { ok: true, launched: match.name };
+});
+
 /* ---------------- app lifecycle ---------------- */
 
 app.whenReady().then(() => {

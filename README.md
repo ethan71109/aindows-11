@@ -87,6 +87,11 @@ your key or your data.
 - **Copilot** — 🤖 in the taskbar. A real tool-using agent: "open minesweeper",
   "summon a pomodoro timer", "save a packing list for Japan", "make the
   weather stormier" — it acts on the OS instead of explaining.
+- **Launch real installed apps** (desktop app, opt-in) — turn on "Launch my
+  real PC apps" in Settings, then type an installed app's name in Start and
+  click the 🖥️ result, or ask Copilot. AIndows only launches apps already in
+  your Start menu (never arbitrary commands), and every launch asks you to
+  approve it.
 - **Snap layouts** — drag windows to edges/corners for halves and quarters,
   top edge to maximize.
 - **Cost meter** — the tray shows a running ≈$ estimate of API spend

@@ -309,6 +309,7 @@
       saveFile:   (path, content, folder) => __rpc("fs.write",  { path, content, folder }),
       deleteFile: (path)                  => __rpc("fs.remove", { path }),
       open:       (path)                  => __rpc("open",      { path }),
+      launch:     (name)                  => __rpc("launch",    { name }),
     };
   </script>`;
 
@@ -406,6 +407,26 @@
     return realFilesOn() ? window.hostFS.remove(String(id), appName) : FS.remove(String(id));
   }
 
+  // Real installed apps: opt-in, desktop-app only.
+  const hostAppsReady = () => !!(window.hostApps && window.hostApps.available);
+  const realAppsOn = () => localStorage.getItem("aindows.realapps") === "1" && hostAppsReady();
+
+  let realAppsList = null; // cached [{name}] once loaded this session
+  async function loadRealApps() {
+    if (!realAppsOn()) return [];
+    if (realAppsList) return realAppsList;
+    try { realAppsList = await window.hostApps.list(); } catch { realAppsList = []; }
+    return realAppsList;
+  }
+
+  async function hostLaunch(name, appName) {
+    if (!realAppsOn())
+      throw new Error("Launching real apps isn't enabled (Settings → Launch my real PC apps; desktop app only).");
+    const r = await window.hostApps.launch(String(name), appName);
+    toast(`🚀 Launched ${r.launched || name}`);
+    return r;
+  }
+
   // Shell side: answer os RPCs coming from sandboxed app iframes.
   addEventListener("message", async (e) => {
     const d = e.data;
@@ -443,6 +464,7 @@
         case "fs.write":  reply(await hostWrite(args.path ?? args.name, args.content, args.folder, rec.app.name)); break;
         case "fs.remove": reply(await hostRemove(args.path ?? args.name, rec.app.name)); break;
         case "open":      reply(openDreamedFile(args.path ?? args.name)); break;
+        case "launch":    reply(await hostLaunch(args.name, rec.app.name)); break;
         default:          reply(null, `unknown os method: ${d.method}`);
       }
     } catch (err) {
@@ -536,6 +558,7 @@
     list_files: () => "📂 checking your files…",
     read_file: (i) => `📖 reading ${i.path || i.name}…`,
     open_file: (i) => `📄 opening ${i.path || i.name}…`,
+    launch_app: (i) => `🚀 launching ${i.name}…`,
   };
 
   async function cpExecute(name, input) {
@@ -546,6 +569,8 @@
           apps: allApps().map((a) => a.name),
           universe: AI.getUniverse(),
           realFilesMode: realFilesOn(),
+          realAppsMode: realAppsOn(),
+          realApps: realAppsOn() ? (await loadRealApps()).map((a) => a.name).slice(0, 200) : [],
           files: realFilesOn() ? await hostList(undefined, "Copilot").catch(() => FS.list()) : FS.list(),
           model: AI.getSettings().model,
           depthModel: AI.depthModel(),
@@ -584,6 +609,8 @@
         return hostRead(input.path ?? input.name, "Copilot");
       case "open_file":
         return openDreamedFile(input.path ?? input.name);
+      case "launch_app":
+        return hostLaunch(input.name, "Copilot");
       case "save_file":
         return hostWrite(input.name ?? input.path, input.content, input.folder, "Copilot");
       case "delete_file":
@@ -768,6 +795,18 @@
       b.addEventListener("click", () => openApp(app));
       startApps.appendChild(b);
     }
+    // Real installed apps that match (launch the actual program, gated).
+    if (realAppsOn() && f && realAppsList) {
+      const matches = realAppsList.filter((a) => a.name.toLowerCase().includes(f)).slice(0, 12);
+      for (const a of matches) {
+        const b = document.createElement("div");
+        b.className = "s-app s-real";
+        b.title = "Launch the real app installed on your PC";
+        b.innerHTML = `<div class="ico">🖥️</div><div class="label">${escapeHTML(a.name)}</div><div class="ai-badge">real app</div>`;
+        b.addEventListener("click", () => { hideStartMenu(); hostLaunch(a.name, "Start menu").catch((e) => toast("✘ " + e.message)); });
+        startApps.appendChild(b);
+      }
+    }
   }
 
   function toggleStartMenu(forceOpen) {
@@ -776,6 +815,8 @@
       startSearch.value = "";
       renderStartApps("");
       startSearch.focus();
+      // Warm the real-apps list so it's ready when the user starts typing.
+      if (realAppsOn() && !realAppsList) loadRealApps().then(() => renderStartApps(startSearch.value));
     } else hideStartMenu();
   }
   function hideStartMenu() {

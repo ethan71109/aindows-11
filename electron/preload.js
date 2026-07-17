@@ -15,3 +15,11 @@ contextBridge.exposeInMainWorld("hostFS", {
   write: (path, content, app) => ipcRenderer.invoke("hostfs:write", { path, content, app }),
   remove: (path, app) => ipcRenderer.invoke("hostfs:remove", { path, app }),
 });
+
+// Real installed apps: enumerate the Start Menu, launch by name (main-process
+// gated with a native confirm). No arbitrary command execution is exposed.
+contextBridge.exposeInMainWorld("hostApps", {
+  available: true,
+  list: () => ipcRenderer.invoke("hostapps:list"),
+  launch: (name, app) => ipcRenderer.invoke("hostapps:launch", { name, app }),
+});
