@@ -198,6 +198,25 @@ const launchGrants = new Set(); // app names the user said "always allow" this s
 
 ipcMain.handle("hostapps:list", async () => (await listHostApps()).map((a) => ({ name: a.name })));
 
+// Likely data/config folders for a named app (for reflecting it from real data).
+ipcMain.handle("hostapps:datadir", async (_e, { name }) => {
+  const n = String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  if (!n) return [];
+  const bases = [app.getPath("appData"), process.env.LOCALAPPDATA, process.env.ProgramData].filter(Boolean);
+  const hits = [];
+  for (const base of bases) {
+    let entries = [];
+    try { entries = await fsp.readdir(base, { withFileTypes: true }); } catch { continue; }
+    for (const e of entries) {
+      if (!e.isDirectory()) continue;
+      const en = e.name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+      if (en && (en === n || en.includes(n) || n.includes(en))) hits.push(path.join(base, e.name));
+    }
+  }
+  // de-dup and cap
+  return [...new Set(hits)].slice(0, 6);
+});
+
 ipcMain.handle("hostapps:launch", async (_e, { name, app: appName }) => {
   const apps = await listHostApps();
   const q = String(name || "").toLowerCase();

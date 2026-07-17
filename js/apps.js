@@ -68,9 +68,11 @@ const BUILTINS = {
          seeded with the file's real contents.</p>
       <p>• <b>Drag windows to screen edges</b> to snap them — halves at the sides,
          quarters at the corners, top edge to maximize.</p>
-      <p>• <b>Launch your real apps.</b> Turn on "Launch my real PC apps" in Settings, then
-         type an installed app's name in Start (Spotify, Chrome, a game) and click the 🖥️
-         result — or ask Copilot. It starts the actual program (you approve each launch).</p>
+      <p>• <b>Reflect your real apps into AIndows.</b> With real files + real apps on, type an
+         installed app in Start (Spotify, Steam, VS Code) and click the 🪞 result — AIndows
+         dreams that app <i>inside</i> itself, built from the real data it reads off your disk.
+         Or ask Copilot ("dream me a Spotify from my real data, use my Music folder too").
+         The small "launch ↗" tag opens the actual program instead.</p>
       <p>• <b>Dark mode</b> and a cheaper <b>depth model</b> (for drilling &amp; viewers)
          live in Settings — dark mode themes the dreamed apps too.</p>
       <p>• The tray shows a running <b>≈$ cost estimate</b> so you always know what the

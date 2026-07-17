@@ -22,4 +22,5 @@ contextBridge.exposeInMainWorld("hostApps", {
   available: true,
   list: () => ipcRenderer.invoke("hostapps:list"),
   launch: (name, app) => ipcRenderer.invoke("hostapps:launch", { name, app }),
+  dataDirs: (name) => ipcRenderer.invoke("hostapps:datadir", { name }),
 });

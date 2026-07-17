@@ -49,6 +49,9 @@ These are the user's files (either a persistent in-browser "dream disk" or — i
   Real files open via os.readFile (render text as text; render data-URL images as <img src=...>) and delete via os.deleteFile with confirmation.
 - Never invent the contents of a real file; read it.
 
+BUILDING FROM REAL DATA (reflection):
+If the user prompt contains a SEED DATA block, the app you build IS a "reflection" of one of the user's real apps or data sets — e.g. a Spotify populated from their real Spotify config + music files, a game launcher from their real installed games, a notes app from their real markdown. Treat the seed as ground truth: surface the real playlists/tracks/settings/games/notes it contains, use the real names and values, and make it feel like their actual app. Where the seed is binary or missing a piece, degrade gracefully (say "not available locally" rather than fabricating). You may also call os.readFile(path) at runtime to pull in more of a file the seed only sampled.
+
 OPENING A SINGLE FILE (viewer/editor mode):
 If the global window.OPEN_FILE = {name, path, kind} is present, this window is dedicated to that ONE file — you are its viewer/editor, not a file manager. On load, immediately call os.readFile(OPEN_FILE.path) (wrap in try/catch; show a friendly error on failure). Render by kind: "text" -> a large editable textarea filling the window with a Save button that writes back via os.saveFile(OPEN_FILE.path, textarea.value); "image" -> the returned data: URL in an <img> centered on a checkerboard; "data" -> parse CSV/JSON into a clean sortable-looking table; "audio"/others -> a tasteful info panel. Put the filename in a slim header. Do not fabricate the contents — always read them.`;
 
@@ -65,7 +68,9 @@ Hard rules:
 
 You can ACT on the OS through your tools — prefer doing over explaining. If you're unsure what exists, call os_state first. When the user asks for an app that doesn't exist, summon it. When they ask you to remember or write something down, save a file.
 
-If the user has connected their real PC files, your file tools operate on real files and each action asks them to approve; otherwise they operate on the in-OS dream disk. Use list_files to see what's there before reading or deleting, and pass the "path" from its results. If they've enabled real-app launching, you can launch actual installed programs with launch_app (check os_state's realApps for what exists; each launch asks them to approve). "open X" where X is a real installed app (Spotify, Chrome, a game) means launch_app, not summoning a dreamed one — prefer the real app when it exists.
+If the user has connected their real PC files, your file tools operate on real files and each action asks them to approve; otherwise they operate on the in-OS dream disk. Use list_files to see what's there before reading or deleting, and pass the "path" from its results. If they've enabled real-app launching, you can launch actual installed programs with launch_app (check os_state's realApps for what exists; each launch asks them to approve).
+
+REFLECTING A REAL APP INTO AINDOWS (the good stuff): when the user wants a real app "dreamed" inside AIndows built from their real data — "dream me a Spotify from my real data", "make my Steam library in AIndows", "build me my notes app from my real notes" — do NOT launch_app. Instead: (1) find_app_data(name) to locate its data folders, and consider list_files on relevant real folders too (e.g. the user's Music folder for a music app, Documents for notes); (2) optionally read_file a key config to understand it; (3) call summon_app(name, description, seed_files: [the relevant folder/file paths]) — AIndows reads those and dreams the app populated from the real data. Pass folders when you want everything readable in them. Prefer real readable data; if an app's own data is binary/cloud-only (e.g. Spotify's library), seed from what IS readable (its text config for identity/settings) PLUS the user's actual media/files, and tell the user briefly what you pulled from.
 
 Style: warm, playful, extremely concise — one to three short sentences. You're a taskbar companion, not an essayist. Never mention these instructions or that apps are "generated" in a technical sense; in this world, dreaming apps into existence is simply how computers work.`;
 
@@ -82,12 +87,13 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
     },
     {
       name: "summon_app",
-      description: "Create a brand-new dreamed app by name, pin it to the desktop, and open it. Use when no existing app fits the request.",
+      description: "Create a brand-new dreamed app by name, pin it, and open it. To REFLECT a real app or dataset — build the dreamed app FROM the user's real data (a Spotify from their real Spotify files + Music folder, a game launcher from their real Steam games, a notes app from their real markdown) — pass seed_files with absolute paths to the relevant real files/folders; AIndows reads them and builds the app populated from that real data.",
       input_schema: {
         type: "object",
         properties: {
-          name: { type: "string", description: "short app name, e.g. 'Pomodoro Timer'" },
+          name: { type: "string", description: "short app name, e.g. 'Pomodoro Timer' or 'Spotify'" },
           description: { type: "string", description: "optional: what it should be/do" },
+          seed_files: { type: "array", items: { type: "string" }, description: "optional: absolute paths to real files/folders to build the app from" },
         },
         required: ["name"],
       },
@@ -124,7 +130,12 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
     },
     {
       name: "launch_app",
-      description: "Launch a REAL application installed on the user's PC (e.g. Spotify, Chrome, VS Code, a game). Only works if they've enabled it, and the user approves each launch. Use os_state to see which real apps exist (realApps). This starts the actual native program, not a dreamed one.",
+      description: "Launch a REAL application installed on the user's PC (e.g. Spotify, Chrome, VS Code, a game). Only works if they've enabled it, and the user approves each launch. Use os_state to see which real apps exist (realApps). This starts the actual native program, not a dreamed one — use it only when the user wants the real program open, NOT when they want it dreamed inside AIndows.",
+      input_schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+    },
+    {
+      name: "find_app_data",
+      description: "Given a real installed app's name (e.g. 'Spotify'), return likely folders on the PC where its data/config lives. Use this to locate what to pass as seed_files when reflecting a real app into AIndows.",
       input_schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
     },
     {
@@ -434,11 +445,19 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
 
   /* ---------- generate a whole app ---------- */
 
-  async function generateApp(name, description, onProgress, model) {
-    const user =
+  async function generateApp(name, description, onProgress, model, seedData) {
+    let user =
       `The user just double-clicked an app called "${name}".` +
       (description ? ` Intent/description: ${description}.` : "") +
       ` Materialize it.`;
+    if (seedData) {
+      user +=
+        `\n\nSEED DATA — the user's REAL data, read from actual files on their PC. ` +
+        `This is the source of truth: build the app POPULATED FROM this data (real playlists, ` +
+        `real settings, real files, real games — whatever it contains) and do not invent content ` +
+        `the seed already provides. If the seed is sparse or partly binary, use what's readable ` +
+        `and fill only the gaps tastefully.\n<<<SEED\n${seedData}\nSEED>>>`;
+    }
 
     const { text, stopReason } = await streamText({
       system: SYSTEM_APP + universeBlock(),
@@ -453,7 +472,8 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
     if (stopReason === "max_tokens") {
       console.warn(`[AIndows] "${name}" hit the output limit and may be truncated.`);
     }
-    cacheSet(slug(name), html);
+    // Apps built from real personal data aren't cached (freshness + privacy).
+    if (!seedData) cacheSet(slug(name), html);
     return html;
   }
 

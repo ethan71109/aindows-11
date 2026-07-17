@@ -21,24 +21,30 @@
 
   const allApps = () => APP_REGISTRY.concat(customApps);
 
-  function summonApp(name, description) {
+  function summonApp(name, description, seedPaths) {
     const id = "summon-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const reflected = Array.isArray(seedPaths) && seedPaths.length > 0;
     let app = allApps().find((a) => a.id === id);
-    if (!app) {
+    if (app) {
+      // re-summoning with new seed data → refresh the source paths
+      if (reflected) { app.seedPaths = seedPaths; app.icon = "🪞"; saveCustomApps(); }
+    } else {
       let h = 0;
       for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
       app = {
-        id, name, icon: SUMMON_ICONS[h % SUMMON_ICONS.length],
-        w: 700, h: 500, desktop: true, custom: true,
+        id, name, icon: reflected ? "🪞" : SUMMON_ICONS[h % SUMMON_ICONS.length],
+        w: 760, h: 540, desktop: true, custom: true,
         desc: description ||
           "An app summoned by name alone — infer what it should be from the name and make it delightful",
       };
+      if (reflected) app.seedPaths = seedPaths;
       customApps.push(app);
       saveCustomApps();
       renderIcons();
       renderStartApps("");
       toast(`${app.icon} ${name} pinned to the desktop`);
     }
+    if (reflected) { AI.clearCached(cacheNameOf(app)); const rec = openWindows.get(app.id); if (rec) return runAIApp(rec, true), app; }
     openApp(app);
     return app;
   }
@@ -242,7 +248,8 @@
     const { app } = rec;
 
     const cacheName = cacheNameOf(app);
-    if (!forceRegen) {
+    // Reflected apps (built from real data) always re-read fresh — never cached.
+    if (!forceRegen && !app.seedPaths) {
       const cached = AI.getCached(cacheName);
       if (cached) return mountApp(rec, cached);
     }
@@ -265,13 +272,19 @@
     const codeEl = body.querySelector(".ai-code");
 
     try {
+      let seedData = "";
+      if (app.seedPaths && app.seedPaths.length) {
+        statusEl.textContent = "reading your real data (approve any prompts)…";
+        seedData = await seedBuilder(app.seedPaths, app.name);
+        if (!seedData) statusEl.textContent = "couldn't read much real data — dreaming anyway…";
+      }
       const html = await AI.generateApp(cacheName, app.desc || "", (chars, text, phase) => {
         statusEl.textContent = phase === "thinking" && !chars
           ? "the engine is thinking about what this app should be…"
           : `${(chars / 1000).toFixed(1)}k characters materialized`;
         codeEl.textContent = text.slice(-4000);
         codeEl.scrollTop = codeEl.scrollHeight;
-      }, app.genModel);
+      }, app.genModel, seedData);
       mountApp(rec, html);
     } catch (err) {
       if (err.message === "NO_KEY") return showNoKey(body, rec);
@@ -427,6 +440,42 @@
     return r;
   }
 
+  // Read a bounded, readable slice of the given files/folders into one text
+  // block that seeds a "reflected" app's generation. Reads go through hostRead/
+  // hostList, so they're gated in real-files mode (one "allow this folder" per dir).
+  const SEED_READABLE = /\.(txt|md|json|jsonc|cfg|ini|xml|vdf|acf|log|csv|tsv|ya?ml|conf|prefs|list|m3u8?|url|toml|properties)$/i;
+  async function seedBuilder(paths, appName) {
+    const CAP = 40000, PER_FILE = 12000;
+    let out = "", used = 0;
+    const addFile = async (fp, label) => {
+      if (used >= CAP) return;
+      let c;
+      try { c = await hostRead(fp, appName); } catch { return; }
+      if (typeof c !== "string" || c.startsWith("data:")) return; // skip binary/images
+      c = c.slice(0, PER_FILE);
+      const block = `\n--- ${label || fp} ---\n${c}\n`;
+      out += block.slice(0, Math.max(0, CAP - used));
+      used = out.length;
+    };
+    for (const p of (paths || [])) {
+      if (used >= CAP) break;
+      let entries = null;
+      if (realFilesOn()) { try { const e = await hostList(p, appName); if (Array.isArray(e)) entries = e; } catch {} }
+      if (entries) {
+        out += `\n[folder: ${p}] (${entries.length} items)\n`;
+        for (const e of entries) {
+          if (used >= CAP) break;
+          if (e.kind === "folder") continue;
+          if (!SEED_READABLE.test(e.name || "")) continue;
+          await addFile(e.path || e.name, e.name);
+        }
+      } else {
+        await addFile(p);
+      }
+    }
+    return out.trim();
+  }
+
   // Shell side: answer os RPCs coming from sandboxed app iframes.
   addEventListener("message", async (e) => {
     const d = e.data;
@@ -559,6 +608,7 @@
     read_file: (i) => `📖 reading ${i.path || i.name}…`,
     open_file: (i) => `📄 opening ${i.path || i.name}…`,
     launch_app: (i) => `🚀 launching ${i.name}…`,
+    find_app_data: (i) => `🔎 finding ${i.name}'s data…`,
   };
 
   async function cpExecute(name, input) {
@@ -585,8 +635,17 @@
         return `opened ${app.name}`;
       }
       case "summon_app": {
-        const app = summonApp(String(input.name), input.description);
-        return `summoned & pinned ${app.name}`;
+        const seeds = Array.isArray(input.seed_files) ? input.seed_files : undefined;
+        const app = summonApp(String(input.name), input.description, seeds);
+        return seeds && seeds.length
+          ? `dreaming ${app.name} in AIndows, built from ${seeds.length} real source(s)`
+          : `summoned & pinned ${app.name}`;
+      }
+      case "find_app_data": {
+        if (!(window.hostApps && window.hostApps.available))
+          return "Real apps aren't available (desktop app only).";
+        const dirs = await window.hostApps.dataDirs(String(input.name));
+        return dirs.length ? { dataDirs: dirs } : `No obvious data folder found for "${input.name}". Try list_files on likely folders.`;
       }
       case "close_app": {
         const q = String(input.name || "").toLowerCase();
@@ -795,18 +854,40 @@
       b.addEventListener("click", () => openApp(app));
       startApps.appendChild(b);
     }
-    // Real installed apps that match (launch the actual program, gated).
+    // Real installed apps that match: primary click DREAMS it in AIndows from
+    // your real data; the "launch ↗" tag opens the actual program instead.
     if (realAppsOn() && f && realAppsList) {
-      const matches = realAppsList.filter((a) => a.name.toLowerCase().includes(f)).slice(0, 12);
+      const matches = realAppsList.filter((a) => a.name.toLowerCase().includes(f)).slice(0, 8);
       for (const a of matches) {
         const b = document.createElement("div");
         b.className = "s-app s-real";
-        b.title = "Launch the real app installed on your PC";
-        b.innerHTML = `<div class="ico">🖥️</div><div class="label">${escapeHTML(a.name)}</div><div class="ai-badge">real app</div>`;
-        b.addEventListener("click", () => { hideStartMenu(); hostLaunch(a.name, "Start menu").catch((e) => toast("✘ " + e.message)); });
+        b.title = "Dream this app inside AIndows, built from your real data";
+        b.innerHTML = `<div class="ico">🪞</div><div class="label">${escapeHTML(a.name)}</div><div class="ai-badge launch-real" title="Launch the real app instead">launch ↗</div>`;
+        b.addEventListener("click", () => reflectRealApp(a.name));
+        b.querySelector(".launch-real").addEventListener("click", (e) => {
+          e.stopPropagation();
+          hideStartMenu();
+          hostLaunch(a.name, "Start menu").catch((err) => toast("✘ " + err.message));
+        });
         startApps.appendChild(b);
       }
     }
+  }
+
+  // Dream a real installed app inside AIndows, seeded with its real on-disk data.
+  async function reflectRealApp(name) {
+    hideStartMenu();
+    if (!realFilesOn())
+      toast('Tip: turn on "Use my real PC files" in Settings so AIndows can read this app\'s real data.');
+    let dirs = [];
+    try { dirs = await window.hostApps.dataDirs(name); } catch {}
+    if (!dirs.length) toast(`No local data folder found for ${name} — dreaming it, but with little real data to draw on.`);
+    const desc =
+      `A faithful, working ${name}, dreamed inside AIndows and POPULATED FROM the user's real ` +
+      `${name} data provided in SEED DATA (their actual settings/library/files). Make it look and ` +
+      `feel like the real ${name}, surfacing their real data; where data is missing locally, say so ` +
+      `rather than inventing it.`;
+    summonApp(name, desc, dirs);
   }
 
   function toggleStartMenu(forceOpen) {

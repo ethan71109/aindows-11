@@ -89,9 +89,16 @@ your key or your data.
   weather stormier" — it acts on the OS instead of explaining.
 - **Launch real installed apps** (desktop app, opt-in) — turn on "Launch my
   real PC apps" in Settings, then type an installed app's name in Start and
-  click the 🖥️ result, or ask Copilot. AIndows only launches apps already in
-  your Start menu (never arbitrary commands), and every launch asks you to
+  click the "launch ↗" tag, or ask Copilot. AIndows only launches apps already
+  in your Start menu (never arbitrary commands), and every launch asks you to
   approve it.
+- **Reflect a real app into AIndows** (the good one) — type an installed app
+  in Start and click the 🪞 result: AIndows *dreams that app inside itself*,
+  populated with the real data it reads off your disk (your real settings,
+  library, files). Or ask Copilot ("dream me a Spotify from my real data").
+  Best for apps that keep readable data locally (Steam games, editor settings,
+  your notes/media); cloud/binary apps give less. Reflected apps aren't cached
+  (fresh read every time) and every file read is still gated.
 - **Snap layouts** — drag windows to edges/corners for halves and quarters,
   top edge to maximize.
 - **Cost meter** — the tray shows a running ≈$ estimate of API spend
