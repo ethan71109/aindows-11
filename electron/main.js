@@ -122,6 +122,15 @@ async function gateDelete(target, appName) {
 ipcMain.handle("hostfs:list", async (_e, { dir, app: appName }) => {
   const target = dir ? path.resolve(dir) : await ensureHome();
   await gate("read", target, true, appName);
+  // If asked to list a FILE (an app mistook it for a folder), signal that
+  // clearly so the shell can open it instead of showing an error.
+  try {
+    const tstat = await fsp.stat(target);
+    if (!tstat.isDirectory()) throw new Error("NOT_A_DIRECTORY");
+  } catch (e) {
+    if (e.message === "NOT_A_DIRECTORY") throw e;
+    throw new Error("can't open — " + (e.code || e.message));
+  }
   const ents = await fsp.readdir(target, { withFileTypes: true });
   // folders first, then files, each alphabetical — like real Explorer
   ents.sort((a, b) =>
@@ -138,6 +147,7 @@ ipcMain.handle("hostfs:list", async (_e, { dir, app: appName }) => {
     } catch { /* unreadable entry — list it anyway */ }
     out.push({
       name: d.name, path: full, folder: target,
+      isFolder: d.isDirectory(),
       kind: d.isDirectory() ? "folder" : kindByExt(d.name),
       size, modified,
     });

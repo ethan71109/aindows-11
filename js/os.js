@@ -537,7 +537,18 @@
           }
           break;
         }
-        case "fs.list":   reply(await hostList(args.dir, rec.app.name)); break;
+        case "fs.list": {
+          try {
+            reply(await hostList(args.dir, rec.app.name));
+          } catch (err) {
+            // Listing a FILE (an app treated it as a folder) → open the file instead.
+            if (args.dir && String((err && err.message) || "").includes("NOT_A_DIRECTORY")) {
+              await openDreamedFile(args.dir, rec.app.name);
+              reply([]);
+            } else throw err;
+          }
+          break;
+        }
         case "fs.read":   reply(await hostRead(args.path ?? args.name, rec.app.name)); break;
         case "fs.write":  reply(await hostWrite(args.path ?? args.name, args.content, args.folder, rec.app.name)); break;
         case "fs.remove": reply(await hostRemove(args.path ?? args.name, rec.app.name)); break;

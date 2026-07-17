@@ -36,7 +36,7 @@ The sandbox provides a global async function dream(prompt) -> Promise<string> th
 
 THE OS FILESYSTEM — real, persistent user files:
 The sandbox also provides a global "os" object:
-  os.listFiles(dir?) -> Promise<[{name, path, folder, kind, size, modified}]>
+  os.listFiles(dir?) -> Promise<[{name, path, folder, isFolder, kind, size, modified}]> — use the isFolder boolean to tell folders from files; NEVER guess folder-ness from the name. Only call os.listFiles on items where isFolder is true.
   os.readFile(path) -> Promise<string>
   os.saveFile(path, content, folder?) -> Promise<{ok}>
   os.deleteFile(path) -> Promise<{ok}>

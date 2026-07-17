@@ -30,7 +30,7 @@ const FS = (() => {
 
   function list() {
     return load().map((f) => ({
-      name: f.name, folder: f.folder, kind: f.kind,
+      name: f.name, folder: f.folder, kind: f.kind, isFolder: false,
       size: (f.content || "").length, modified: f.modified,
     }));
   }
