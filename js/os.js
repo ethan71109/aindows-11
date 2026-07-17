@@ -381,7 +381,12 @@
     if (!pathOrName) return "no file given";
     const kind = kindOf(pathOrName);
     const base = pathOrName.split(/[\\/]/).pop() || pathOrName;
-    if (!kind) return hostOpenFile(pathOrName, appName || "AIndows");
+    if (!kind) {
+      // An app/executable → DREAM it into AIndows from its real data (reflect).
+      if (/\.(exe|com|scr|lnk|msi|appref-ms)$/i.test(pathOrName)) return reflectFromExe(pathOrName, appName);
+      // A document/media/other → open with its real Windows program.
+      return hostOpenFile(pathOrName, appName || "AIndows");
+    }
     const v = VIEWERS[kind] || VIEWERS.file;
     openApp({
       id: "viewer-" + kind + "-" + hashStr(pathOrName),
@@ -395,6 +400,26 @@
       desc: v.desc,
     });
     return "opened " + base;
+  }
+
+  // Double-clicking an app's executable DREAMS that app into AIndows, seeded
+  // with the app's real data (its install folder + its AppData), rather than
+  // launching the native program.
+  async function reflectFromExe(exePath, appName) {
+    const base = exePath.split(/[\\/]/).pop() || exePath;
+    const name = base.replace(/\.[^.]+$/, "") || base;
+    const slash = Math.max(exePath.lastIndexOf("\\"), exePath.lastIndexOf("/"));
+    const dir = slash > 0 ? exePath.slice(0, slash) : "";
+    let dataDirs = [];
+    try { if (window.hostApps && window.hostApps.dataDirs) dataDirs = await window.hostApps.dataDirs(name); } catch {}
+    const seedPaths = [dir, ...dataDirs].filter(Boolean);
+    const desc =
+      `A faithful, working ${name}, dreamed inside AIndows and POPULATED FROM the user's real ` +
+      `${name} data provided in SEED DATA (its actual files, settings, and library on disk). ` +
+      `Recreate what ${name} really is and make it feel like the real thing using that data; ` +
+      `where something isn't present in the data, keep it tasteful rather than inventing.`;
+    summonApp(name, desc, seedPaths);
+    return "dreaming " + name + " into AIndows from its real data";
   }
 
   // Open a file with its real Windows program (gated in main; executables
