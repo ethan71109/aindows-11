@@ -166,6 +166,14 @@ const BUILTINS = {
         <input id="set-realfs" type="checkbox" style="flex:0 0 auto;width:18px;height:18px" />
         <span id="set-realfs-note" style="font-size:12px;color:#666"></span>
       </div>
+      <div class="set-row">
+        <label for="set-fullaccess">Full disk access <span style="font-weight:400;color:#c42b1c">⚠</span></label>
+        <input id="set-fullaccess" type="checkbox" style="flex:0 0 auto;width:18px;height:18px" />
+        <span id="set-fullaccess-note" style="font-size:12px;color:#666"></span>
+      </div>
+      <p style="font-size:12px;color:#c0392b;margin:-2px 2px 6px">With this on, AIndows and its
+         AI-written apps read and change <b>any file on your PC without asking</b> — no per-folder
+         prompts. Deleting still asks. Only turn this on if you understand that.</p>
 
       <h3>Launch real apps <span id="set-realapps-badge"></span></h3>
       <p>Let AIndows launch <b>real programs installed on this PC</b> (from your Start menu) —
@@ -223,11 +231,33 @@ const BUILTINS = {
     $("#set-realfs-note").textContent = hostReady
       ? (realBox.checked ? "on — apps can reach your real files (with your approval)" : "off — apps use the dream disk")
       : "Only available in the desktop app (.exe). In the browser, apps always use the dream disk.";
+    // Full disk access (no prompts) — a sub-option of real files.
+    const fullBox = $("#set-fullaccess");
+    const fullNote = () => {
+      if (!hostReady) return "Only available in the desktop app (.exe).";
+      if (!realBox.checked) return "Turn on real PC files first.";
+      return fullBox.checked ? "ON — no prompts (delete still asks)" : "off — you approve each folder";
+    };
+    const refreshFull = () => { fullBox.disabled = !hostReady || !realBox.checked; $("#set-fullaccess-note").textContent = fullNote(); };
+    fullBox.checked = localStorage.getItem("aindows.fullaccess") === "1";
+    refreshFull();
+    fullBox.addEventListener("change", () => {
+      localStorage.setItem("aindows.fullaccess", fullBox.checked ? "1" : "0");
+      if (window.hostFS && window.hostFS.setFullAccess) window.hostFS.setFullAccess(fullBox.checked).catch(() => {});
+      $("#set-fullaccess-note").textContent = fullNote();
+      status("#set-ustatus",
+        fullBox.checked
+          ? "⚠ Full disk access ON — no more prompts for reads/writes. Any AI-written app can now touch any file."
+          : "Full disk access off — per-folder approval is back.",
+        true);
+    });
+
     realBox.addEventListener("change", () => {
       localStorage.setItem("aindows.realfs", realBox.checked ? "1" : "0");
       $("#set-realfs-note").textContent = realBox.checked
         ? "on — apps can reach your real files (with your approval)"
         : "off — apps use the dream disk";
+      refreshFull();
       status("#set-ustatus",
         realBox.checked
           ? "Real PC files ON. Re-dream file apps (🔄) so they use them, and expect approval prompts."

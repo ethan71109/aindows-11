@@ -68,6 +68,11 @@ const IMG_MIME = {
   ".svg": "image/svg+xml",
 };
 
+// Full disk access: when the user opts in, reads/writes skip the per-folder
+// confirm entirely. Deletes still confirm (see gateDelete). Off by default.
+let fullAccess = false;
+ipcMain.handle("hostfs:setfullaccess", (_e, on) => { fullAccess = !!on; return { ok: true, fullAccess }; });
+
 // Session-only permission grants (cleared on quit). Deletes are never granted.
 const grants = { read: new Set(), write: new Set() };
 function hasGrant(kind, dir) {
@@ -78,6 +83,7 @@ function hasGrant(kind, dir) {
 }
 
 async function gate(kind, target, isDir, appName) {
+  if (fullAccess) return; // user granted blanket read/write access
   const dir = isDir ? target : path.dirname(target);
   if (hasGrant(kind, dir)) return;
   const verb = kind === "read" ? "read" : "save files in";

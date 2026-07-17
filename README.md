@@ -31,6 +31,11 @@ npm run dist       # build the installer → dist/AIndows 11 Setup <version>.exe
 ```
 
 Notes:
+- **Full disk access** (Settings, opt-in, off by default): normally every real
+  read/write asks you to approve the folder once. Turn this on and AIndows —
+  and its AI-written apps — read and change any file with no prompts (delete
+  still asks). Only enable it if you understand that AI-generated code is then
+  touching your whole disk unattended.
 - The installer is unsigned, so Windows SmartScreen will warn on first run —
   click "More info → Run anyway". Normal for hobby apps.
 - The desktop app has its own storage (separate from your browser), so enter

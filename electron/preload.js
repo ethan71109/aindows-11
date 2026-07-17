@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("hostFS", {
   read: (path, app) => ipcRenderer.invoke("hostfs:read", { path, app }),
   write: (path, content, app) => ipcRenderer.invoke("hostfs:write", { path, content, app }),
   remove: (path, app) => ipcRenderer.invoke("hostfs:remove", { path, app }),
+  setFullAccess: (on) => ipcRenderer.invoke("hostfs:setfullaccess", on),
 });
 
 // Real installed apps: enumerate the Start Menu, launch by name (main-process

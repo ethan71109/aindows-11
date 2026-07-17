@@ -399,6 +399,13 @@
   const hostFSReady = () => !!(window.hostFS && window.hostFS.available);
   const realFilesOn = () => localStorage.getItem("aindows.realfs") === "1" && hostFSReady();
 
+  // Push the "full disk access (no prompts)" setting to the main process.
+  function syncFullAccess() {
+    if (window.hostFS && window.hostFS.setFullAccess)
+      window.hostFS.setFullAccess(localStorage.getItem("aindows.fullaccess") === "1").catch(() => {});
+  }
+  syncFullAccess();
+
   // Route filesystem ops to the real disk (gated) or the dream disk.
   async function hostList(dir, appName) {
     return realFilesOn() ? window.hostFS.list(dir, appName) : FS.list();
