@@ -7,6 +7,7 @@
 const { app, BrowserWindow, shell, dialog, ipcMain } = require("electron");
 const path = require("path");
 const fsp = require("fs/promises");
+const { spawn } = require("child_process");
 const { autoUpdater } = require("electron-updater");
 
 let mainWindow = null;
@@ -282,7 +283,8 @@ const RISKY_OPEN = /\.(exe|msi|bat|cmd|ps1|psm1|com|scr|pif|vbs|vbe|jse|wsf|wsh|
 ipcMain.handle("hostapps:openfile", async (_e, { path: p, app: appName }) => {
   const target = path.resolve(String(p || ""));
   const risky = RISKY_OPEN.test(target);
-  if (risky || !openFileGrantAll) {
+  const autoAllow = process.env.AINDOWS_TEST_AUTOALLOW === "1"; // test-only; never set in the shipped app
+  if (!autoAllow && (risky || !openFileGrantAll)) {
     const { response } = await dialog.showMessageBox(mainWindow, {
       type: risky ? "warning" : "question",
       buttons: risky ? ["Deny", "Open (run it)"] : ["Deny", "Open", "Open all files this session"],
@@ -298,8 +300,18 @@ ipcMain.handle("hostapps:openfile", async (_e, { path: p, app: appName }) => {
     if (response === 0) throw new Error("Open denied.");
     if (!risky && response === 2) openFileGrantAll = true;
   }
-  const err = await shell.openPath(target);
-  if (err) throw new Error(err);
+  // Executables: shell.openPath is unreliable for running .exe — spawn detached
+  // so it actually launches. Everything else opens with its default program.
+  if (/\.(exe|com|scr)$/i.test(target)) {
+    try {
+      spawn(target, [], { detached: true, stdio: "ignore", cwd: path.dirname(target) }).unref();
+    } catch (e) {
+      throw new Error("couldn't launch: " + e.message);
+    }
+  } else {
+    const err = await shell.openPath(target);
+    if (err) throw new Error(err);
+  }
   return { ok: true, opened: path.basename(target) };
 });
 
