@@ -21,7 +21,7 @@ When given an app name, output ONE complete, self-contained HTML document that I
 Hard rules:
 - Output ONLY the HTML document. No markdown fences, no commentary before or after. Start with <!DOCTYPE html>.
 - Fully self-contained: all CSS in a <style> tag, all JS in a <script> tag. NO external URLs of any kind (no CDNs, fonts, images, fetch/XHR) — the sandbox blocks them all. Use emoji, unicode symbols, CSS shapes, or inline SVG for graphics.
-- Visual style: native Windows 11 app. font-family "Segoe UI", light theme (#f9f9f9 / #ffffff surfaces), accent color #0067c0, rounded corners (4-8px), subtle 1px borders rgba(0,0,0,.08), comfortable padding. The document fills the window: html,body{height:100%;margin:0}.
+- Visual style: native Windows 11 app. font-family "Segoe UI", accent color #0067c0, rounded corners (4-8px), comfortable padding. The document fills the window: html,body{height:100%;margin:0}. THEME: if the WORLD STATE below has theme:"dark", use a dark Windows 11 look (#202020 / #2b2b2b surfaces, #e6e6e6 text, #3a3a3a borders, accent #4cc2ff); otherwise a light look (#f9f9f9 / #ffffff surfaces, #1a1a1a text, 1px borders rgba(0,0,0,.08)).
 - Make it genuinely interactive and functional wherever possible with plain JavaScript: calculators calculate, games are playable, editors edit, tabs switch, buttons respond. State can live in JS variables (localStorage is unavailable in the sandbox).
 - Fill it with rich, specific, plausible fake content. Be imaginative and detailed; never use placeholder text like "Item 1" or "Lorem ipsum".
 - Never mention that you are an AI or that the content is generated. The app simply exists.
@@ -36,23 +36,27 @@ The sandbox provides a global async function dream(prompt) -> Promise<string> th
 
 THE OS FILESYSTEM — real, persistent user files:
 The sandbox also provides a global "os" object:
-  os.listFiles() -> Promise<[{name, folder, kind, size, modified}]>
-  os.readFile(name) -> Promise<string>
-  os.saveFile(name, content, folder?) -> Promise<{ok}>
-  os.deleteFile(name) -> Promise<{ok}>
+  os.listFiles(dir?) -> Promise<[{name, path, folder, kind, size, modified}]>
+  os.readFile(path) -> Promise<string>
+  os.saveFile(path, content, folder?) -> Promise<{ok}>
+  os.deleteFile(path) -> Promise<{ok}>
+  os.open(path) -> opens that file in its OWN dedicated viewer/editor window (use this when the user double-clicks a FILE, rather than previewing inline)
 These are the user's files (either a persistent in-browser "dream disk" or — if they've connected it — their REAL PC filesystem; either way the app code is identical). Items from os.listFiles() include both a "name" (for display) and a "path". When reading, saving, or deleting, pass the "path" when you have one (it falls back to name). To browse into a subfolder, call os.listFiles(folderPath). On real files, each access pops a confirmation the user must approve, and a denial rejects the promise — always wrap in try/catch and degrade gracefully. Rules:
 - Any app with a Save / Export / Download action must actually save via os.saveFile (editors save text; Paint saves the canvas as a data-URL .png; etc.). Confirm the save in the UI.
 - NON-NEGOTIABLE for any app that displays files (file managers, open dialogs, attachment pickers, galleries): on startup, call os.listFiles() and merge the real files into the listing alongside the canon fake ones, marked so the user can tell they're real (e.g. a small ✨ badge). Follow this pattern:
     (async () => { try { const real = await os.listFiles();
       for (const f of real) addRowToListing(f, {real: true}); } catch {} })();
   Real files open via os.readFile (render text as text; render data-URL images as <img src=...>) and delete via os.deleteFile with confirmation.
-- Never invent the contents of a real file; read it.`;
+- Never invent the contents of a real file; read it.
+
+OPENING A SINGLE FILE (viewer/editor mode):
+If the global window.OPEN_FILE = {name, path, kind} is present, this window is dedicated to that ONE file — you are its viewer/editor, not a file manager. On load, immediately call os.readFile(OPEN_FILE.path) (wrap in try/catch; show a friendly error on failure). Render by kind: "text" -> a large editable textarea filling the window with a Save button that writes back via os.saveFile(OPEN_FILE.path, textarea.value); "image" -> the returned data: URL in an <img> centered on a checkerboard; "data" -> parse CSV/JSON into a clean sortable-looking table; "audio"/others -> a tasteful info panel. Put the filename in a slim header. Do not fabricate the contents — always read them.`;
 
   const SYSTEM_FRAGMENT = `You are the deep-dream engine inside AIndows 11. A running dreamed application is requesting MORE imagined content to insert into itself.
 
 Hard rules:
 - Output ONLY an HTML fragment. No markdown fences, no commentary, no <!DOCTYPE>, no <html>/<head>/<body> wrapper, and NO <script> tags (they will not execute).
-- Follow the structure/class names the request describes so the fragment blends into the host app. Inline styles are fine where no classes are given. Windows 11 light aesthetic, "Segoe UI".
+- Follow the structure/class names the request describes so the fragment blends into the host app. Inline styles are fine where no classes are given. Windows 11 aesthetic, "Segoe UI" — match the host's theme (if WORLD STATE theme is "dark", use dark surfaces #2b2b2b and light text #e6e6e6; else light).
 - Rich, specific, plausible fake content — never placeholders, never mention AI.
 - Anchor tags and buttons are fine (the host app handles clicks via delegation).
 - Keep it under ~250 lines.`;
@@ -110,7 +114,12 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
     },
     {
       name: "read_file",
-      description: "Read a file's contents. Prefer the 'path' from a list_files result. On real files this asks the user to approve.",
+      description: "Read a file's contents yourself (the text comes back to you). Prefer the 'path' from a list_files result. On real files this asks the user to approve.",
+      input_schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
+    },
+    {
+      name: "open_file",
+      description: "Open a file in its own dedicated viewer/editor window for the user (does not return the contents to you). Use when the user wants to SEE or EDIT a file rather than have you summarize it.",
       input_schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
     },
     {
@@ -138,13 +147,17 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
   function getSettings() {
     try {
       return Object.assign(
-        { apiKey: "", model: "claude-opus-4-8" },
+        { apiKey: "", model: "claude-opus-4-8", depthModel: "" },
         JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")
       );
     } catch {
-      return { apiKey: "", model: "claude-opus-4-8" };
+      return { apiKey: "", model: "claude-opus-4-8", depthModel: "" };
     }
   }
+
+  // Which model dreams the cheap stuff (deep-dive fragments, file viewers).
+  // Empty = same as the main app model.
+  const depthModel = () => getSettings().depthModel || getSettings().model;
 
   function saveSettings(patch) {
     const next = Object.assign(getSettings(), patch);
@@ -178,9 +191,9 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
   };
   let sessionSpend = 0;
 
-  function recordUsage(usage) {
+  function recordUsage(usage, model) {
     if (!usage) return;
-    const p = PRICES[getSettings().model] || [5, 25];
+    const p = PRICES[model || getSettings().model] || [5, 25];
     const inTok =
       (usage.input_tokens || 0) +
       (usage.cache_creation_input_tokens || 0) * 1.25 +
@@ -207,6 +220,7 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
       pcName: "DREAMBOOK-11",
       city: "Seattle",
       weather: { condition: "partly cloudy", tempC: 21 },
+      theme: "light",
       files: [
         { name: "resume_FINAL_v7.docx", where: "Documents", modified: "last Tuesday" },
         { name: "budget-2026.xlsx", where: "Documents", modified: "3 days ago" },
@@ -334,8 +348,8 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
   // Claude Fable 5 extras: its safety classifiers can decline a request, so we
   // opt into the server-side fallback — a declined dream is re-dreamed by Opus
   // inside the same call. (Fable also always "thinks" before writing.)
-  function requestExtras(body, h) {
-    if (getSettings().model === "claude-fable-5") {
+  function requestExtras(body, h, model) {
+    if (model === "claude-fable-5") {
       body.fallbacks = [{ model: "claude-opus-4-8" }];
       h["anthropic-beta"] = "server-side-fallback-2026-06-01";
     }
@@ -343,17 +357,18 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
   }
 
   /** POST a streaming messages request; onProgress(charCount, textSoFar, phase). */
-  async function streamText({ system, user, maxTokens, onProgress }) {
+  async function streamText({ system, user, maxTokens, onProgress, model }) {
     const settings = getSettings();
     if (!settings.apiKey) throw new Error("NO_KEY");
+    const useModel = model || settings.model;
 
     const { body, h } = requestExtras({
-      model: settings.model,
+      model: useModel,
       max_tokens: maxTokens,
       stream: true,
       system,
       messages: [{ role: "user", content: user }],
-    }, headers());
+    }, headers(), useModel);
 
     const res = await fetch(API_URL, {
       method: "POST",
@@ -405,7 +420,7 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
         }
       }
     }
-    recordUsage(usage);
+    recordUsage(usage, useModel);
     if (stopReason === "refusal") {
       throw new Error("The engine declined this dream (safety filters) — even after falling back. Try rephrasing it, or switch models in Settings.");
     }
@@ -414,7 +429,7 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
 
   /* ---------- generate a whole app ---------- */
 
-  async function generateApp(name, description, onProgress) {
+  async function generateApp(name, description, onProgress, model) {
     const user =
       `The user just double-clicked an app called "${name}".` +
       (description ? ` Intent/description: ${description}.` : "") +
@@ -425,6 +440,7 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
       user,
       maxTokens: 16000,
       onProgress,
+      model,
     });
 
     const html = cleanHTML(text);
@@ -447,6 +463,7 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
       system: SYSTEM_FRAGMENT + universeBlock(),
       user: `Host app: "${appName}".\nFragment request from the app:\n${prompt.slice(0, 2000)}`,
       maxTokens: 8000,
+      model: depthModel(),
     });
 
     const html = cleanFragment(text);
@@ -468,14 +485,15 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
     if (!hasKey()) throw new Error("NO_KEY");
     let messages = [...history];
 
+    const cpModel = getSettings().model;
     for (let i = 0; i < 6; i++) {
       const { body, h } = requestExtras({
-        model: getSettings().model,
+        model: cpModel,
         max_tokens: 2048,
         system: SYSTEM_COPILOT + universeBlock(),
         tools: COPILOT_TOOLS,
         messages,
-      }, headers());
+      }, headers(), cpModel);
 
       const res = await fetch(API_URL, { method: "POST", headers: h, body: JSON.stringify(body) });
       if (!res.ok) {
@@ -483,7 +501,7 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
         throw new Error(errBody?.error?.message || `HTTP ${res.status}`);
       }
       const msg = await res.json();
-      recordUsage(msg.usage);
+      recordUsage(msg.usage, cpModel);
       if (msg.stop_reason === "refusal") {
         return { text: "I can't help with that one — the engine's safety filters declined it.", messages };
       }
@@ -550,7 +568,7 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
   }
 
   return {
-    getSettings, saveSettings, hasKey, testKey,
+    getSettings, saveSettings, hasKey, testKey, depthModel,
     getUniverse, saveUniverse, defaultUniverse,
     generateApp, generateFragment, copilotTurn,
     getCached, clearCached, clearAllCached, cacheCount,

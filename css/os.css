@@ -10,6 +10,35 @@
   --taskbar-h: 48px;
 }
 
+/* ---------- dark mode (toggled via Settings; canon lives in the universe) ---------- */
+body.dark {
+  --acrylic: rgba(30, 30, 30, 0.85);
+  --accent: #4cc2ff;
+}
+body.dark .window { background: #202020; border-color: rgba(255,255,255,.09); }
+body.dark .titlebar { background: #2b2b2b; border-bottom-color: rgba(255,255,255,.06); color: #e6e6e6; }
+body.dark .t-btns button { color: #e6e6e6; }
+body.dark .t-btns button:hover { background: rgba(255,255,255,.08); }
+body.dark .win-body { background: #202020; }
+body.dark .app-pane { color: #e6e6e6; }
+body.dark .app-pane h2, body.dark .app-pane h3 { color: #f2f2f2; }
+body.dark .app-pane p { color: #b4b4b4; }
+body.dark .app-pane code { background: #333; color: #e6e6e6; }
+body.dark .set-row { background: #2b2b2b; border-color: rgba(255,255,255,.09); }
+body.dark .set-row input[type="text"], body.dark .set-row input[type="password"],
+body.dark .set-row select, body.dark .universe-area, body.dark .notepad-area,
+body.dark #start-search, body.dark #cp-form input {
+  background: #1a1a1a; color: #e6e6e6; border-color: rgba(255,255,255,.15);
+}
+body.dark .set-actions button { background: #2b2b2b; color: #e6e6e6; border-color: rgba(255,255,255,.15); }
+body.dark .set-actions button.primary { background: var(--accent); color: #062033; border-color: var(--accent); }
+body.dark #clock, body.dark #spend, body.dark .start-label, body.dark .s-app .label,
+body.dark .start-user, body.dark .cp-head, body.dark .ctx-item, body.dark #ai-status { color: #e6e6e6; }
+body.dark #spend { background: rgba(255,255,255,.08); }
+body.dark .cp-bot { background: #2b2b2b; color: #e6e6e6; border-color: rgba(255,255,255,.09); }
+body.dark .s-app:hover, body.dark .ctx-item:hover, body.dark .tb-app:hover,
+body.dark #start-btn:hover, body.dark #copilot-btn:hover, body.dark #power-btn:hover { background: rgba(255,255,255,.09); }
+
 html, body {
   height: 100%;
   overflow: hidden;

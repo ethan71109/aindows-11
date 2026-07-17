@@ -126,7 +126,7 @@
     el.querySelector(".t-max").addEventListener("click", () => el.classList.toggle("maximized"));
     const regen = el.querySelector(".t-regen");
     if (regen) regen.addEventListener("click", () => {
-      AI.clearCached(app.name);
+      AI.clearCached(cacheNameOf(app));
       runAIApp(rec, true);
     });
     const exp = el.querySelector(".t-export");
@@ -241,9 +241,10 @@
     const body = rec.el.querySelector(".win-body");
     const { app } = rec;
 
+    const cacheName = cacheNameOf(app);
     if (!forceRegen) {
-      const cached = AI.getCached(app.name);
-      if (cached) return mountApp(body, cached);
+      const cached = AI.getCached(cacheName);
+      if (cached) return mountApp(rec, cached);
     }
 
     if (!AI.hasKey()) return showNoKey(body, rec);
@@ -264,14 +265,14 @@
     const codeEl = body.querySelector(".ai-code");
 
     try {
-      const html = await AI.generateApp(app.name, app.desc || "", (chars, text, phase) => {
+      const html = await AI.generateApp(cacheName, app.desc || "", (chars, text, phase) => {
         statusEl.textContent = phase === "thinking" && !chars
           ? "the engine is thinking about what this app should be…"
           : `${(chars / 1000).toFixed(1)}k characters materialized`;
         codeEl.textContent = text.slice(-4000);
         codeEl.scrollTop = codeEl.scrollHeight;
-      });
-      mountApp(body, html);
+      }, app.genModel);
+      mountApp(rec, html);
     } catch (err) {
       if (err.message === "NO_KEY") return showNoKey(body, rec);
       body.innerHTML = `
@@ -303,10 +304,11 @@
     });
     window.dream = (prompt) => __rpc("dream", { prompt: String(prompt) });
     window.os = {
-      listFiles:  ()                      => __rpc("fs.list",   {}),
-      readFile:   (name)                  => __rpc("fs.read",   { name }),
-      saveFile:   (name, content, folder) => __rpc("fs.write",  { name, content, folder }),
-      deleteFile: (name)                  => __rpc("fs.remove", { name }),
+      listFiles:  (dir)                   => __rpc("fs.list",   { dir }),
+      readFile:   (path)                  => __rpc("fs.read",   { path }),
+      saveFile:   (path, content, folder) => __rpc("fs.write",  { path, content, folder }),
+      deleteFile: (path)                  => __rpc("fs.remove", { path }),
+      open:       (path)                  => __rpc("open",      { path }),
     };
   </script>`;
 
@@ -316,14 +318,68 @@
     return scriptTag + html;
   }
 
-  function mountApp(body, html) {
+  function mountApp(rec, html) {
+    const body = rec.el.querySelector(".win-body");
     body.innerHTML = "";
     const frame = document.createElement("iframe");
     // no allow-same-origin: dreamed code can never touch your key or storage
     frame.setAttribute("sandbox", "allow-scripts allow-forms allow-modals");
-    frame.srcdoc = injectScript(html, BRIDGE_JS);
+    let injected = injectScript(html, BRIDGE_JS);
+    // Viewer windows: tell the app which single file it's dedicated to.
+    if (rec.app.openFile) {
+      const json = JSON.stringify(rec.app.openFile).replace(/</g, "\\u003c");
+      injected = injectScript(injected, `<script>window.OPEN_FILE=${json};</script>`);
+    }
+    frame.srcdoc = injected;
     body.appendChild(frame);
   }
+
+  // file-type → viewer identity (cached once per kind, so every .txt shares one editor)
+  const VIEWERS = {
+    text:  { icon: "📄", desc: "A single-file text/code editor (see window.OPEN_FILE)." },
+    image: { icon: "🖼️", desc: "A single-image viewer (see window.OPEN_FILE)." },
+    data:  { icon: "📊", desc: "A single-file data viewer that renders CSV/JSON as a table (see window.OPEN_FILE)." },
+    webpage: { icon: "🌐", desc: "A viewer that renders a single saved HTML/markup file (see window.OPEN_FILE)." },
+    audio: { icon: "🎵", desc: "An info panel for a single audio file (see window.OPEN_FILE)." },
+    file:  { icon: "📄", desc: "A viewer/editor for a single file (see window.OPEN_FILE)." },
+  };
+  const EXT_KIND = {
+    txt: "text", md: "text", log: "text", js: "text", ts: "text", css: "text", py: "text",
+    json: "data", csv: "data", tsv: "data",
+    html: "webpage", htm: "webpage", xml: "webpage",
+    png: "image", jpg: "image", jpeg: "image", gif: "image", webp: "image", bmp: "image", svg: "image",
+    mp3: "audio", wav: "audio", ogg: "audio",
+  };
+  const kindOf = (s) => EXT_KIND[(String(s).split(".").pop() || "").toLowerCase()] || "text";
+  function hashStr(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h.toString(36);
+  }
+
+  // Open a file in its own dreamed viewer/editor window.
+  function openDreamedFile(pathOrName) {
+    pathOrName = String(pathOrName || "").trim();
+    if (!pathOrName) return "no file given";
+    const kind = kindOf(pathOrName);
+    const v = VIEWERS[kind] || VIEWERS.file;
+    const base = pathOrName.split(/[\\/]/).pop() || pathOrName;
+    openApp({
+      id: "viewer-" + kind + "-" + hashStr(pathOrName),
+      name: base,
+      icon: v.icon,
+      w: kind === "image" ? 720 : 680,
+      h: 540,
+      cacheKey: "viewer-" + kind,     // one cached viewer per file type
+      genModel: AI.depthModel(),      // viewers are cheap → depth model
+      openFile: { name: base, path: pathOrName, kind },
+      desc: v.desc,
+    });
+    return "opened " + base;
+  }
+
+  // What to cache a window's generated HTML under (viewers share by kind).
+  const cacheNameOf = (app) => app.cacheKey || app.name;
 
   // Real-files mode: only in the desktop app, only when the user opted in.
   const hostFSReady = () => !!(window.hostFS && window.hostFS.available);
@@ -383,9 +439,10 @@
           break;
         }
         case "fs.list":   reply(await hostList(args.dir, rec.app.name)); break;
-        case "fs.read":   reply(await hostRead(args.name ?? args.path, rec.app.name)); break;
-        case "fs.write":  reply(await hostWrite(args.name ?? args.path, args.content, args.folder, rec.app.name)); break;
-        case "fs.remove": reply(await hostRemove(args.name ?? args.path, rec.app.name)); break;
+        case "fs.read":   reply(await hostRead(args.path ?? args.name, rec.app.name)); break;
+        case "fs.write":  reply(await hostWrite(args.path ?? args.name, args.content, args.folder, rec.app.name)); break;
+        case "fs.remove": reply(await hostRemove(args.path ?? args.name, rec.app.name)); break;
+        case "open":      reply(openDreamedFile(args.path ?? args.name)); break;
         default:          reply(null, `unknown os method: ${d.method}`);
       }
     } catch (err) {
@@ -404,7 +461,7 @@
   </script>`;
 
   function exportApp(app) {
-    const html = AI.getCached(app.name);
+    const html = AI.getCached(cacheNameOf(app));
     if (!html) return toast("Nothing to export yet — let it finish dreaming first");
     const blob = new Blob([injectScript(html, EXPORT_STUB)], { type: "text/html" });
     const a = document.createElement("a");
@@ -475,7 +532,10 @@
     change_wallpaper: () => "🖼️ changing the wallpaper…",
     edit_universe: () => "🌌 rewriting the universe…",
     save_file: (i) => `💾 saving ${i.name}…`,
-    delete_file: (i) => `🗑️ deleting ${i.name}…`,
+    delete_file: (i) => `🗑️ deleting ${i.path || i.name}…`,
+    list_files: () => "📂 checking your files…",
+    read_file: (i) => `📖 reading ${i.path || i.name}…`,
+    open_file: (i) => `📄 opening ${i.path || i.name}…`,
   };
 
   async function cpExecute(name, input) {
@@ -488,6 +548,7 @@
           realFilesMode: realFilesOn(),
           files: realFilesOn() ? await hostList(undefined, "Copilot").catch(() => FS.list()) : FS.list(),
           model: AI.getSettings().model,
+          depthModel: AI.depthModel(),
           spendUSD: AI.getSpend(),
         };
       case "open_app": {
@@ -521,13 +582,26 @@
         return hostList(input.dir, "Copilot");
       case "read_file":
         return hostRead(input.path ?? input.name, "Copilot");
+      case "open_file":
+        return openDreamedFile(input.path ?? input.name);
       case "save_file":
         return hostWrite(input.name ?? input.path, input.content, input.folder, "Copilot");
       case "delete_file":
-        return hostRemove(input.name ?? input.path, "Copilot");
+        return hostRemove(input.path ?? input.name, "Copilot");
       default:
         throw new Error("unknown tool: " + name);
     }
+  }
+
+  // Keep the Copilot's re-sent history bounded so long chats don't re-bill the
+  // whole transcript each turn. Trim from the front, but only to a clean user
+  // text turn (never mid tool_use/tool_result pair, which the API would reject).
+  function trimHistory(msgs) {
+    const MAX = 40;
+    if (msgs.length <= MAX) return msgs;
+    let start = msgs.length - 30;
+    while (start > 0 && !(msgs[start].role === "user" && typeof msgs[start].content === "string")) start--;
+    return msgs.slice(start);
   }
 
   async function cpSend(text) {
@@ -547,7 +621,7 @@
         (name, input) => { thinking.remove(); cpAdd("tool", (CP_TOOL_LABELS[name] || (() => `🔧 ${name}…`))(input || {})); }
       );
       thinking.remove();
-      cpHistory = messages;
+      cpHistory = trimHistory(messages);
       cpAdd("bot", reply);
     } catch (err) {
       thinking.remove();
@@ -616,7 +690,7 @@
       const items = [{ label: "Open", action: () => openApp(app) }];
       if (!app.builtin) {
         items.push({ label: "🔄 Re-dream", action: () => {
-          AI.clearCached(app.name);
+          AI.clearCached(cacheNameOf(app));
           const rec = openWindows.get(app.id);
           if (rec) runAIApp(rec, true); else openApp(app);
         }});
@@ -648,6 +722,14 @@
     applyWallpaper();
   }
   applyWallpaper();
+
+  /* ---------------- theme (light / dark, canon-deep) ---------------- */
+
+  function applyTheme() {
+    document.body.classList.toggle("dark", AI.getUniverse().theme === "dark");
+  }
+  document.addEventListener("aindows:theme", applyTheme);
+  applyTheme();
 
   /* ---------------- desktop icons ---------------- */
 

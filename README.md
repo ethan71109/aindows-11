@@ -41,7 +41,10 @@ Notes:
 Installed copies check this repo's **latest GitHub Release** on every launch
 and update themselves. To ship a new version:
 
-1. Bump `"version"` in `package.json` (e.g. `1.0.1`)
+1. Bump `"version"` in `package.json` (e.g. `1.0.1`) **and the matching
+   `?v=` query on the `<script>`/`<link>` tags in `index.html`** (that busts
+   stale cached JS for web/GitHub-Pages visitors; the desktop app loads from
+   disk so it doesn't strictly need it, but keep them in sync)
 2. `npm run dist`
 3. Create a GitHub release tagged `v1.0.1` and attach everything electron-builder
    put in `dist/` for that build: the `Setup .exe`, the `.blockmap`, **and

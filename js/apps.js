@@ -12,7 +12,7 @@ const APP_REGISTRY = [
 
   // ---- imagined by the AI on open ----
   { id: "explorer",   name: "File Explorer", icon: "📁", desktop: true,  w: 760, h: 520,
-    desc: "A Windows 11 File Explorer: left sidebar (Home, Desktop, Documents, Downloads, Pictures, Music, This PC), breadcrumb path bar, a main pane of plausible folders and files with names/dates/sizes. Folders MUST actually open: on double-click, dream() the folder's contents and swap them into the file pane (update the breadcrumb too, with working back navigation). CRITICAL: on startup call os.listFiles() and merge the user's REAL files into the listing with a ✨ badge — real ones open via os.readFile (show text; render data-URL images as <img>) and delete via os.deleteFile" },
+    desc: "A Windows 11 File Explorer: left sidebar (Home, Desktop, Documents, Downloads, Pictures, Music, This PC), breadcrumb path bar, a main pane of plausible folders and files with names/dates/sizes. Folders MUST actually open: on double-click, dream() the folder's contents and swap them into the file pane (update the breadcrumb too, with working back navigation). Double-clicking a FILE calls os.open(file.path) to open it in its own viewer/editor window. CRITICAL: on startup call os.listFiles() and merge the user's real files into the listing with a ✨ badge; delete via os.deleteFile" },
   { id: "browser",    name: "Browser",        icon: "🌐", desktop: false, w: 820, h: 560,
     desc: "A web browser onto an imagined internet — address bar, tabs, and a fake news-portal homepage. Every link MUST work: intercept clicks and dream() the next page (pass the invented URL and what the page should be), then render it and update the address bar, with working back/forward history" },
   { id: "calculator", name: "Calculator",     icon: "🧮", desktop: true,  w: 340, h: 500,
@@ -63,8 +63,13 @@ const BUILTINS = {
       <p>• <b>Files are real now.</b> Save a drawing in Paint or a note in an editor and it
          lands on the <i>dream disk</i> — it'll be there in File Explorer, in other apps,
          and after a reboot.</p>
+      <p>• <b>Open any file in its own app.</b> Double-click a file in Explorer (or ask
+         Copilot to open one) and AIndows dreams a viewer/editor tailored to it —
+         seeded with the file's real contents.</p>
       <p>• <b>Drag windows to screen edges</b> to snap them — halves at the sides,
          quarters at the corners, top edge to maximize.</p>
+      <p>• <b>Dark mode</b> and a cheaper <b>depth model</b> (for drilling &amp; viewers)
+         live in Settings — dark mode themes the dreamed apps too.</p>
       <p>• The tray shows a running <b>≈$ cost estimate</b> so you always know what the
          dreaming costs.</p>
       <p>• <b>Right-click</b> the desktop or any icon for options — re-dream, export, unpin, change wallpaper.</p>
@@ -102,7 +107,7 @@ const BUILTINS = {
         <button id="set-eye" title="Show/hide" style="border:none;background:none;cursor:pointer">👁️</button>
       </div>
       <div class="set-row">
-        <label for="set-model">Model</label>
+        <label for="set-model">App model</label>
         <select id="set-model">
           <option value="claude-opus-4-8">Claude Opus 4.8 — best apps (default)</option>
           <option value="claude-fable-5">Claude Fable 5 — deepest dreams (2× Opus price, thinks first)</option>
@@ -110,6 +115,17 @@ const BUILTINS = {
           <option value="claude-haiku-4-5">Claude Haiku 4.5 — fastest &amp; cheapest</option>
         </select>
       </div>
+      <div class="set-row">
+        <label for="set-depthmodel">Depth model</label>
+        <select id="set-depthmodel">
+          <option value="">Same as app model</option>
+          <option value="claude-haiku-4-5">Claude Haiku 4.5 — cheap &amp; fast (recommended)</option>
+          <option value="claude-sonnet-5">Claude Sonnet 5</option>
+          <option value="claude-opus-4-8">Claude Opus 4.8</option>
+        </select>
+      </div>
+      <p style="font-size:12px;color:#777;margin:-2px 2px 6px">Used for the cheap stuff — drilling into
+         folders/links and opening file viewers. A lighter model here makes exploring nearly free.</p>
       <div class="set-actions">
         <button class="primary" id="set-save">Save</button>
         <button id="set-test">Test connection</button>
@@ -127,6 +143,13 @@ const BUILTINS = {
         <button id="set-ureset">Reset to default</button>
       </div>
       <div id="set-ustatus"></div>
+
+      <h3>Appearance</h3>
+      <div class="set-row">
+        <label for="set-dark">Dark mode</label>
+        <input id="set-dark" type="checkbox" style="flex:0 0 auto;width:18px;height:18px" />
+        <span style="font-size:12px;color:#666">themes the OS chrome and (on re-dream) the apps too</span>
+      </div>
 
       <h3>Real PC files <span id="set-realfs-badge"></span></h3>
       <p>Let AIndows and its dreamed apps read and write the <b>actual files on this
@@ -153,6 +176,7 @@ const BUILTINS = {
     const $ = (q) => el.querySelector(q);
     $("#set-key").value = s.apiKey;
     $("#set-model").value = s.model;
+    $("#set-depthmodel").value = s.depthModel || "";
     $("#set-cachecount").textContent = AI.cacheCount();
     $("#set-universe").value = JSON.stringify(AI.getUniverse(), null, 2);
     $("#set-filecount").textContent = FS.count();
@@ -161,6 +185,17 @@ const BUILTINS = {
       FS.clear();
       $("#set-filecount").textContent = "0";
       status("#set-ustatus", "Dream disk wiped.", true);
+    });
+
+    // Dark mode — lives in the universe canon so dreamed apps follow it too.
+    const darkBox = $("#set-dark");
+    darkBox.checked = AI.getUniverse().theme === "dark";
+    darkBox.addEventListener("change", () => {
+      AI.saveUniverse(Object.assign(AI.getUniverse(), { theme: darkBox.checked ? "dark" : "light" }));
+      document.dispatchEvent(new CustomEvent("aindows:theme"));
+      status("#set-ustatus",
+        darkBox.checked ? "Dark mode on. Re-dream apps (🔄) to darken them too." : "Back to light mode.",
+        true);
     });
 
     // Real PC files toggle — only meaningful in the desktop app.
@@ -196,12 +231,12 @@ const BUILTINS = {
     });
 
     $("#set-save").addEventListener("click", () => {
-      AI.saveSettings({ apiKey: $("#set-key").value.trim(), model: $("#set-model").value });
+      AI.saveSettings({ apiKey: $("#set-key").value.trim(), model: $("#set-model").value, depthModel: $("#set-depthmodel").value });
       status("#set-status", "Saved.", true);
     });
 
     $("#set-test").addEventListener("click", async () => {
-      AI.saveSettings({ apiKey: $("#set-key").value.trim(), model: $("#set-model").value });
+      AI.saveSettings({ apiKey: $("#set-key").value.trim(), model: $("#set-model").value, depthModel: $("#set-depthmodel").value });
       if (!AI.hasKey()) return status("#set-status", "Enter a key first.", false);
       status("#set-status", "Testing…");
       try {
