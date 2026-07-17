@@ -359,27 +359,30 @@
     audio: { icon: "🎵", desc: "An info panel for a single audio file (see window.OPEN_FILE)." },
     file:  { icon: "📄", desc: "A viewer/editor for a single file (see window.OPEN_FILE)." },
   };
+  // Only these types get a DREAMED viewer. Everything else (exe, docx, pdf, zip,
+  // media, unknown…) opens with its real Windows program via hostOpenFile.
   const EXT_KIND = {
     txt: "text", md: "text", log: "text", js: "text", ts: "text", css: "text", py: "text",
     json: "data", csv: "data", tsv: "data",
     html: "webpage", htm: "webpage", xml: "webpage",
     png: "image", jpg: "image", jpeg: "image", gif: "image", webp: "image", bmp: "image", svg: "image",
-    mp3: "audio", wav: "audio", ogg: "audio",
   };
-  const kindOf = (s) => EXT_KIND[(String(s).split(".").pop() || "").toLowerCase()] || "text";
+  const kindOf = (s) => EXT_KIND[(String(s).split(".").pop() || "").toLowerCase()] || null;
   function hashStr(s) {
     let h = 0;
     for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
     return h.toString(36);
   }
 
-  // Open a file in its own dreamed viewer/editor window.
-  function openDreamedFile(pathOrName) {
+  // Open a file: dreamable types get a dreamed viewer; everything else opens
+  // with the real program it's associated with on the PC.
+  async function openDreamedFile(pathOrName, appName) {
     pathOrName = String(pathOrName || "").trim();
     if (!pathOrName) return "no file given";
     const kind = kindOf(pathOrName);
-    const v = VIEWERS[kind] || VIEWERS.file;
     const base = pathOrName.split(/[\\/]/).pop() || pathOrName;
+    if (!kind) return hostOpenFile(pathOrName, appName || "AIndows");
+    const v = VIEWERS[kind] || VIEWERS.file;
     openApp({
       id: "viewer-" + kind + "-" + hashStr(pathOrName),
       name: base,
@@ -392,6 +395,23 @@
       desc: v.desc,
     });
     return "opened " + base;
+  }
+
+  // Open a file with its real Windows program (gated in main; executables
+  // always re-confirm). Requires the "Launch my real PC apps" opt-in.
+  async function hostOpenFile(pathOrName, appName) {
+    if (!(window.hostApps && window.hostApps.available && localStorage.getItem("aindows.realapps") === "1")) {
+      toast('Turn on "Launch my real PC apps" in Settings to open this with its real program.');
+      return "real-program opening not enabled";
+    }
+    try {
+      const r = await window.hostApps.openFile(String(pathOrName), appName || "AIndows");
+      toast(`↗ Opened ${r.opened || pathOrName}`);
+      return r;
+    } catch (e) {
+      toast("✘ " + e.message);
+      throw e;
+    }
   }
 
   // What to cache a window's generated HTML under (viewers share by kind).
@@ -521,7 +541,7 @@
         case "fs.read":   reply(await hostRead(args.path ?? args.name, rec.app.name)); break;
         case "fs.write":  reply(await hostWrite(args.path ?? args.name, args.content, args.folder, rec.app.name)); break;
         case "fs.remove": reply(await hostRemove(args.path ?? args.name, rec.app.name)); break;
-        case "open":      reply(openDreamedFile(args.path ?? args.name)); break;
+        case "open":      reply(await openDreamedFile(args.path ?? args.name, rec.app.name)); break;
         case "launch":    reply(await hostLaunch(args.name, rec.app.name)); break;
         case "fs.drives": reply(realFilesOn() ? await window.hostFS.drives() : []); break;
         case "fs.userdirs": reply(realFilesOn() ? await window.hostFS.userDirs() : {}); break;
@@ -678,7 +698,7 @@
       case "read_file":
         return hostRead(input.path ?? input.name, "Copilot");
       case "open_file":
-        return openDreamedFile(input.path ?? input.name);
+        return openDreamedFile(input.path ?? input.name, "Copilot");
       case "launch_app":
         return hostLaunch(input.name, "Copilot");
       case "save_file":

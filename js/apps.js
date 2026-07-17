@@ -176,10 +176,11 @@ const BUILTINS = {
          prompts. Deleting still asks. Only turn this on if you understand that.</p>
 
       <h3>Launch real apps <span id="set-realapps-badge"></span></h3>
-      <p>Let AIndows launch <b>real programs installed on this PC</b> (from your Start menu) —
-         type an app's name in Start and click the 🖥️ result, or ask Copilot. Desktop app
-         only. Only your installed apps can be launched (never arbitrary commands), and
-         <b>every launch asks you to approve it</b> first.</p>
+      <p>Let AIndows run <b>real programs on this PC</b>: launch installed apps (type a name
+         in Start → 🖥️, or ask Copilot), and <b>open files with their real Windows program</b>
+         — so double-clicking a <code>.exe</code>, <code>.pdf</code>, <code>.docx</code>, etc.
+         in File Explorer opens it for real. Desktop app only. <b>Every launch/open asks you
+         to approve it</b>, and executables re-confirm every time.</p>
       <div class="set-row">
         <label for="set-realapps">Launch my real PC apps</label>
         <input id="set-realapps" type="checkbox" style="flex:0 0 auto;width:18px;height:18px" />

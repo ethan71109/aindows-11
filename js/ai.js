@@ -40,7 +40,7 @@ The sandbox also provides a global "os" object:
   os.readFile(path) -> Promise<string>
   os.saveFile(path, content, folder?) -> Promise<{ok}>
   os.deleteFile(path) -> Promise<{ok}>
-  os.open(path) -> opens that file in its OWN dedicated viewer/editor window (use this when the user double-clicks a FILE, rather than previewing inline)
+  os.open(path) -> opens a file the right way: text/code/data/image files open in a dreamed viewer/editor window; anything else (exe, pdf, docx, zip, media, unknown) opens with its REAL Windows program. Use this for any file the user double-clicks.
   os.drives() -> Promise<[{name:"C:", path:"C:\\", totalBytes, freeBytes}]> — the user's REAL drives (This PC). Returns [] when real files aren't enabled.
   os.userDirs() -> Promise<{home, desktop, documents, downloads, pictures, music, videos}> — absolute paths to the user's REAL special folders (for quick-access). Empty object when real files aren't enabled.
 These are the user's files (either a persistent in-browser "dream disk" or — if they've connected it — their REAL PC filesystem; either way the app code is identical). Items from os.listFiles() include both a "name" (for display) and a "path". When reading, saving, or deleting, pass the "path" when you have one (it falls back to name). To browse into a subfolder, call os.listFiles(folderPath). On real files, each access pops a confirmation the user must approve, and a denial rejects the promise — always wrap in try/catch and degrade gracefully. Rules:

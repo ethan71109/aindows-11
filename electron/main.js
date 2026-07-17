@@ -274,6 +274,35 @@ ipcMain.handle("hostapps:launch", async (_e, { name, app: appName }) => {
   return { ok: true, launched: match.name };
 });
 
+// Open an arbitrary file with its real associated Windows program.
+// Documents/media confirm once (with a session grant-all); executables and
+// scripts confirm EVERY time (default Deny) — running code is never blanket-ok.
+let openFileGrantAll = false;
+const RISKY_OPEN = /\.(exe|msi|bat|cmd|ps1|psm1|com|scr|pif|vbs|vbe|jse|wsf|wsh|hta|cpl|jar|reg|lnk|inf|sys|dll)$/i;
+ipcMain.handle("hostapps:openfile", async (_e, { path: p, app: appName }) => {
+  const target = path.resolve(String(p || ""));
+  const risky = RISKY_OPEN.test(target);
+  if (risky || !openFileGrantAll) {
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: risky ? "warning" : "question",
+      buttons: risky ? ["Deny", "Open (run it)"] : ["Deny", "Open", "Open all files this session"],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+      title: risky ? "Run a program?" : "Open a file?",
+      message: `${appName || "AIndows"} wants to open this with its real Windows program:`,
+      detail: target + (risky
+        ? "\n\nThis is an executable/script — opening it RUNS it. Only continue if you trust this file."
+        : ""),
+    });
+    if (response === 0) throw new Error("Open denied.");
+    if (!risky && response === 2) openFileGrantAll = true;
+  }
+  const err = await shell.openPath(target);
+  if (err) throw new Error(err);
+  return { ok: true, opened: path.basename(target) };
+});
+
 /* ---------------- app lifecycle ---------------- */
 
 app.whenReady().then(() => {
