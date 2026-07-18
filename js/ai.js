@@ -157,6 +157,9 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
       name: "delete_file",
       description: "Delete a file (real PC file if connected — the user must approve — otherwise the dream disk). Prefer the 'path' from a list_files result.",
       input_schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
+      // Prompt-caching breakpoint: marking the LAST tool caches the whole tool
+      // list as one prefix, so repeat Copilot calls read it at ~10% price.
+      cache_control: { type: "ephemeral" },
     },
   ];
 
@@ -380,11 +383,17 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
     if (!settings.apiKey) throw new Error("NO_KEY");
     const useModel = model || settings.model;
 
+    // Prompt caching: the system prompt (dream instructions + world state) is
+    // identical from one dream to the next — only the user message changes. So
+    // we mark the system block as a cache breakpoint: the first dream writes it
+    // to Anthropic's 5-minute cache, and every dream after that reads it back at
+    // ~10% of the input price (and starts faster). The varying user message
+    // stays after the breakpoint, uncached.
     const { body, h } = requestExtras({
       model: useModel,
       max_tokens: maxTokens,
       stream: true,
-      system,
+      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: user }],
     }, headers(), useModel);
 
@@ -510,11 +519,25 @@ Style: warm, playful, extremely concise — one to three short sentences. You're
     let messages = [...history];
 
     const cpModel = getSettings().model;
+    // Prompt caching: build the system prompt ONCE per turn (not per loop pass).
+    // Caching is an exact-prefix match, so if the world state shifted mid-loop
+    // (a tool created a file, say) and we rebuilt this string every pass, every
+    // pass would miss the cache. The model still learns what changed from the
+    // tool results it just received.
+    const cpSystem = SYSTEM_COPILOT + universeBlock();
     for (let i = 0; i < 6; i++) {
       const { body, h } = requestExtras({
         model: cpModel,
         max_tokens: 2048,
-        system: SYSTEM_COPILOT + universeBlock(),
+        // Three cache layers, cheapest-to-invalidate last:
+        //  1. the tool list (breakpoint on the last tool — never changes)
+        //  2. the system prompt (breakpoint here — changes when the world does)
+        //  3. the conversation (top-level cache_control = "automatic caching":
+        //     the API keeps a moving breakpoint at the end of the messages, so
+        //     each loop pass / follow-up turn re-reads the whole history from
+        //     cache and only pays full price for what's new)
+        cache_control: { type: "ephemeral" },
+        system: [{ type: "text", text: cpSystem, cache_control: { type: "ephemeral" } }],
         tools: COPILOT_TOOLS,
         messages,
       }, headers(), cpModel);
